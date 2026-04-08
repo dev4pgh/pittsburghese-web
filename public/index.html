@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pittsburghese Translator</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --accent: #FFB612;
+            --accent-hover: #ffc53d;
+            --text: #111;
+            --muted: #666;
+            --border: #d8dde3;
+            --surface: #f8f9fa;
+            --surface-2: #f1f3f5;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            max-width: 820px;
+            margin: 32px auto;
+            padding: 20px;
+            line-height: 1.55;
+            color: var(--text);
+            background: linear-gradient(180deg, #fff 0%, #fffdf7 100%);
+        }
+
+        .hero {
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.9rem, 3vw, 2.45rem);
+            line-height: 1.08;
+        }
+
+        .subhead {
+            margin: 0;
+            color: #444;
+            font-size: 1rem;
+        }
+
+        .stack {
+            display: grid;
+            gap: 18px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            padding: 18px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .row.spread {
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .meta {
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 132px;
+            padding: 14px;
+            margin: 12px 0 0;
+            font-size: 16px;
+            font-family: inherit;
+            border: 1px solid #c9ccd1;
+            border-radius: 12px;
+            resize: vertical;
+            background: white;
+        }
+
+        button {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 11px 18px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: transform 0.05s ease, background 0.15s ease;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background: #d6d6d6;
+            color: #555;
+            cursor: not-allowed;
+        }
+
+        .secondary {
+            background: #eef1f4;
+            color: #1d2730;
+        }
+
+        .secondary:hover:not(:disabled) {
+            background: #e3e8ee;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            min-height: 26px;
+        }
+
+        .status {
+            font-size: 0.95rem;
+            color: #555;
+            min-height: 1.4em;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 3px solid #ddd;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+            flex: 0 0 auto;
+        }
+
+        .spinner.visible {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .progress-wrap {
+            margin-top: 12px;
+            display: none;
+            gap: 8px;
+            flex-direction: column;
+        }
+
+        .progress-wrap.visible {
+            display: flex;
+        }
+
+        .progress-item {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            padding: 7px 10px 0;
+            color: #555;
+        }
+
+        .progress-bar-outer {
+            margin: 6px 10px 10px;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.15s ease-out;
+        }
+
+        #output {
+            margin-top: 12px;
+            padding: 16px;
+            background: var(--surface);
+            border: 1px solid #e4e8ec;
+            min-height: 132px;
+            font-size: 18px;
+            border-radius: 12px;
+            white-space: pre-wrap;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #fff8df;
+            border: 1px solid #efcf6a;
+            color: #6b5700;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                margin: 20px auto;
+                padding: 14px;
+            }
+
+            .card {
+                padding: 14px;
+            }
+
+            .controls,
+            .row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hero">
+        <h1>Pittsburghese Translator, n'at</h1>
+        <p class="subhead">Runs fully in your browser. Type plain English and get back a Pittsburgh-style rewrite with
+            streaming output.</p>
+    </div>
+
+    <div class="stack">
+        <section class="card">
+            <div class="row spread">
+                <div class="panel-title">Standard English</div>
+                <div class="meta" id="inputMeta">0 characters</div>
+            </div>
+
+            <textarea id="inputText" placeholder="Type standard English here..."></textarea>
+
+            <div class="controls">
+                <button id="translateBtn" disabled>Translate</button>
+                <button id="randomBtn" class="secondary" type="button">Random prompt</button>
+                <button id="clearBtn" class="secondary" type="button">Clear</button>
+            </div>
+
+            <div class="status-row">
+                <div id="spinner" class="spinner visible" aria-hidden="true"></div>
+                <div class="status" id="statusText">Status: Loading model…</div>
+            </div>
+
+            <div id="progressWrap" class="progress-wrap visible"></div>
+            <div class="hint">Tip: press Ctrl/Cmd + Enter to translate.</div>
+        </section>
+
+        <section class="card">
+            <div class="row spread">
+                <div class="panel-title">Pittsburghese</div>
+                <div class="row" style="gap:10px;">
+                    <div class="badge" id="modelBadge">Loading model</div>
+                    <div class="meta" id="outputMeta">Ready when you are</div>
+                    <button id="copyBtn" class="secondary" type="button">Copy output</button>
+                </div>
+            </div>
+
+            <div id="output">Translation will appear here...</div>
+        </section>
+    </div>
+
+    <script src="./config.js"></script>
+    <script type="module">
+        const MODEL_ID = window.APP_CONFIG?.MODEL_ID || 'Dev4PGH/pittsburghese-model';
+
+        const SYSTEM_PROMPT =
+            "You are a Pittsburghese translator. " +
+            "Convert standard American English into authentic Pittsburgh dialect — " +
+            "warm, funny, and full of local flavor. " +
+            "Always preserve the original meaning; just change the style.";
+
+        const RANDOM_PROMPTS = [
+            "Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.",
+            "The roads might get slippery tonight, so we should probably leave early.",
+            "Can you grab me a soda and a rubber band from the drawer?",
+            "My neighbor is so nosy about everybody's business.",
+            "We can stop downtown after supper if traffic is not too bad.",
+            "Please wash the dishes before bed, and then help me clean up the living room.",
+            "You guys should come over and watch the Steelers game with us.",
+            "I need to run out, grab groceries, and get home before the rain starts.",
+            "That hill gets slippery every single time it snows.",
+            "Please stop acting like a jerk and help me carry these groceries."
+        ];
+
+        const btn = document.getElementById('translateBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const input = document.getElementById('inputText');
+        const output = document.getElementById('output');
+        const status = document.getElementById('statusText');
+        const spinner = document.getElementById('spinner');
+        const progressWrap = document.getElementById('progressWrap');
+        const inputMeta = document.getElementById('inputMeta');
+        const outputMeta = document.getElementById('outputMeta');
+        const modelBadge = document.getElementById('modelBadge');
+
+        let worker = null;
+        let isReady = false;
+        let isTranslating = false;
+        let queuedText = null;
+        const progressMap = new Map();
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function adaptiveMaxNewTokens(text) {
+            const words = text.trim().split(/\s+/).filter(Boolean).length;
+            return clamp(Math.round(words * 2.1) + 18, 24, 220);
+        }
+
+        function stripPromptEcho(text, originalInput) {
+            let cleaned = (text || '').trim();
+            const escapedInput = originalInput
+                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                .trim();
+
+            if (escapedInput) {
+                cleaned = cleaned.replace(new RegExp(`^${escapedInput}\\s*`, 'i'), '').trim();
+            }
+            return cleaned.trim();
+        }
+
+        function setBusy(visible) {
+            spinner.classList.toggle('visible', visible);
+        }
+
+        function updateButtons() {
+            btn.disabled = !isReady || isTranslating;
+            randomBtn.disabled = isTranslating;
+            clearBtn.disabled = false;
+            copyBtn.disabled = !output.innerText || output.innerText === 'Translation will appear here...';
+        }
+
+        function updateMeta() {
+            inputMeta.textContent = `${input.value.length} characters`;
+            const text = output.innerText.trim();
+
+            if (!text || text === 'Translation will appear here...') {
+                outputMeta.textContent = isReady ? 'Model loaded' : 'Loading model';
+            } else {
+                outputMeta.textContent = `${text.length} characters`;
+            }
+
+            modelBadge.textContent = isReady ? 'Model ready' : 'Loading model';
+            updateButtons();
+        }
+
+        function renderProgress() {
+            progressWrap.innerHTML = '';
+            if (progressMap.size === 0) {
+                progressWrap.classList.remove('visible');
+                return;
+            }
+
+            progressWrap.classList.add('visible');
+
+            for (const item of progressMap.values()) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'progress-item';
+
+                const label = document.createElement('div');
+                label.className = 'progress-label';
+                const percent = typeof item.progress === 'number' ? ` (${item.progress.toFixed(1)}%)` : '';
+                label.textContent = `${item.file}${percent}`;
+
+                const outer = document.createElement('div');
+                outer.className = 'progress-bar-outer';
+
+                const inner = document.createElement('div');
+                inner.className = 'progress-bar-inner';
+                inner.style.width = `${item.progress ?? 0}%`;
+
+                outer.appendChild(inner);
+                wrapper.appendChild(label);
+                wrapper.appendChild(outer);
+                progressWrap.appendChild(wrapper);
+            }
+        }
+
+        function startTranslation(text) {
+            if (!worker) return;
+            const trimmed = text.trim();
+            if (!trimmed) return;
+
+            isTranslating = true;
+            output.innerText = '';
+            outputMeta.textContent = 'Streaming…';
+            status.innerText = 'Status: Translating...';
+            setBusy(true);
+            updateButtons();
+
+            worker.postMessage({
+                type: 'translate',
+                text: trimmed,
+                max_new_tokens: adaptiveMaxNewTokens(trimmed),
+            });
+        }
+
+        function pickRandomPrompt() {
+            const prompt = RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
+            input.value = prompt;
+            updateMeta();
+            input.focus();
+        }
+
+        function initWorker() {
+            const workerSource = `
+                import { pipeline, TextStreamer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';
+
+                const SYSTEM_PROMPT = ${JSON.stringify("You are a Pittsburghese translator. Convert standard American English into authentic Pittsburgh dialect — warm, funny, and full of local flavor. Always preserve the original meaning; just change the style.")};
+                const FALLBACK_CHAT_TEMPLATE =
+                    "{% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}" +
+                    "{% for message in messages %}" +
+                    "{{ '<|im_start|>' + message['role'] + '\\\\n' + message['content'] + '<|im_end|>\\\\n' }}" +
+                    "{% endfor %}" +
+                    "{% if add_generation_prompt %}{{ '<|im_start|>assistant\\\\n' }}{% endif %}";
+
+                let generatorPromise = null;
+                let generator = null;
+                let MODEL_ID = null;
+
+                async function getGenerator() {
+                    if (generator) return generator;
+                    if (generatorPromise) return generatorPromise;
+
+                    env.allowRemoteModels = true;
+                    env.allowLocalModels = false;
+                    env.useBrowserCache = true;
+
+                    generatorPromise = pipeline('text-generation', MODEL_ID, {
+                        device: 'wasm',
+                        dtype: 'q8',
+                        progress_callback: (x) => self.postMessage(x),
+                    }).then(instance => {
+                        generator = instance;
+                        if (!generator.tokenizer.chat_template) {
+                            generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
+                        }
+                        self.postMessage({ status: 'ready' });
+                        return instance;
+                    });
+
+                    return generatorPromise;
+                }
+
+                self.addEventListener('message', async (event) => {
+                    const data = event.data;
+
+                    if (data.type === 'init') {
+                        MODEL_ID = data.modelId;
+                        try {
+                            await getGenerator();
+                        } catch (err) {
+                            self.postMessage({ status: 'error', message: String(err?.message || err) });
+                        }
+                        return;
+                    }
+
+                    if (data.type === 'translate') {
+                        try {
+                            const pipe = await getGenerator();
+
+                            const messages = [
+                                { role: 'system', content: SYSTEM_PROMPT },
+                                { role: 'user', content: 'Translate to Pittsburghese:\\n' + data.text },
+                            ];
+
+                            let streamed = '';
+                            const streamer = new TextStreamer(pipe.tokenizer, {
+                                skip_prompt: true,
+                                skip_special_tokens: true,
+                                callback_function: (text) => {
+                                    streamed += text;
+                                    self.postMessage({ status: 'update', output: text });
+                                },
+                            });
+
+                            await pipe(messages, {
+                                max_new_tokens: data.max_new_tokens,
+                                do_sample: true,
+                                temperature: 0.30,
+                                top_k: 20,
+                                top_p: 0.90,
+                                repetition_penalty: 1.10,
+                                renormalize_logits: true,
+                                use_cache: true,
+                                return_full_text: false,
+                                streamer,
+                            });
+
+                            self.postMessage({
+                                status: 'complete',
+                                streamed,
+                                originalInput: data.text,
+                            });
+                        } catch (err) {
+                            self.postMessage({ status: 'error', message: String(err?.message || err) });
+                        }
+                    }
+                });
+            `;
+
+            const blob = new Blob([workerSource], { type: 'text/javascript' });
+            worker = new Worker(URL.createObjectURL(blob), { type: 'module' });
+
+            worker.addEventListener('message', (e) => {
+                const data = e.data ?? {};
+
+                switch (data.status) {
+                    case 'initiate':
+                        progressMap.set(data.file, { file: data.file, progress: 0 });
+                        renderProgress();
+                        setBusy(true);
+                        status.innerText = 'Status: Loading model files...';
+                        break;
+
+                    case 'progress':
+                        progressMap.set(data.file, {
+                            file: data.file,
+                            progress: data.progress ?? 0,
+                        });
+                        renderProgress();
+                        setBusy(true);
+                        status.innerText = 'Status: Loading model files...';
+                        break;
+
+                    case 'done':
+                        progressMap.delete(data.file);
+                        renderProgress();
+                        break;
+
+                    case 'ready':
+                        isReady = true;
+                        setBusy(false);
+                        if (progressMap.size === 0) {
+                            progressWrap.classList.remove('visible');
+                        }
+                        status.innerText = 'Status: Model loaded.';
+                        updateMeta();
+
+                        if (queuedText && !isTranslating) {
+                            const text = queuedText;
+                            queuedText = null;
+                            startTranslation(text);
+                        }
+                        break;
+
+                    case 'update':
+                        output.innerText += data.output ?? '';
+                        updateMeta();
+                        break;
+
+                    case 'complete': {
+                        isTranslating = false;
+                        setBusy(false);
+
+                        const finalText = stripPromptEcho(
+                            (data.streamed || output.innerText || '').trim(),
+                            data.originalInput || input.value.trim()
+                        );
+
+                        output.innerText = finalText || '[No text generated]';
+                        status.innerText = 'Status: Done!';
+                        updateMeta();
+                        break;
+                    }
+
+                    case 'error':
+                        isTranslating = false;
+                        setBusy(false);
+                        status.innerText = `Error: ${data.message || 'Unknown error'}`;
+                        updateMeta();
+                        break;
+                }
+            });
+
+            worker.postMessage({ type: 'init', modelId: MODEL_ID });
+        }
+
+        btn.addEventListener('click', () => {
+            const text = input.value.trim();
+            if (!text) return;
+
+            if (!isReady) {
+                queuedText = text;
+                status.innerText = 'Status: Loading model first, then translating...';
+                setBusy(true);
+                return;
+            }
+
+            startTranslation(text);
+        });
+
+        randomBtn.addEventListener('click', pickRandomPrompt);
+
+        clearBtn.addEventListener('click', () => {
+            queuedText = null;
+            input.value = '';
+            output.innerText = 'Translation will appear here...';
+            status.innerText = isReady ? 'Status: Model loaded.' : 'Status: Loading model...';
+            updateMeta();
+            input.focus();
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            const text = output.innerText.trim();
+            if (!text || text === 'Translation will appear here...') return;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                const old = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.textContent = old;
+                }, 1200);
+            } catch {
+                copyBtn.textContent = 'Copy failed';
+                setTimeout(() => {
+                    copyBtn.textContent = 'Copy output';
+                }, 1200);
+            }
+        });
+
+        input.addEventListener('input', updateMeta);
+
+        input.addEventListener('keydown', (event) => {
+            const isMac = navigator.platform.toUpperCase().includes('MAC');
+            const modifierPressed = isMac ? event.metaKey : event.ctrlKey;
+
+            if (modifierPressed && event.key === 'Enter') {
+                event.preventDefault();
+                btn.click();
+            }
+        });
+
+        updateMeta();
+        initWorker();
+        input.focus();
+    </script>
+</body>
+
+</html>
