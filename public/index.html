@@ -2,8 +2,8 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pittsburghese Translator</title>
     <style>
         :root {
@@ -141,7 +141,7 @@
 
         .status-row {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
             margin-top: 14px;
             min-height: 26px;
@@ -151,6 +151,8 @@
             font-size: 0.95rem;
             color: #555;
             min-height: 1.4em;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .spinner {
@@ -162,6 +164,7 @@
             animation: spin 0.8s linear infinite;
             display: none;
             flex: 0 0 auto;
+            margin-top: 2px;
         }
 
         .spinner.visible {
@@ -269,8 +272,10 @@
 <body>
     <div class="hero">
         <h1>Pittsburghese Translator, n'at</h1>
-        <p class="subhead">Runs fully in your browser. Type plain English and get back a Pittsburgh-style rewrite with
-            streaming output.</p>
+        <p class="subhead">
+            Runs fully in your browser. Type plain English and get back a Pittsburgh-style rewrite with
+            streaming output.
+        </p>
     </div>
 
     <div class="stack">
@@ -314,6 +319,7 @@
     <script src="./config.js"></script>
     <script type="module">
         const MODEL_ID = window.APP_CONFIG?.MODEL_ID || 'Dev4PGH/pittsburghese-model';
+        const MODEL_REVISION = window.APP_CONFIG?.MODEL_REVISION || null;
 
         const SYSTEM_PROMPT =
             "You are a Pittsburghese translator. " +
@@ -461,7 +467,7 @@
             const workerSource = `
                 import { pipeline, TextStreamer, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1/dist/transformers.min.js';
 
-                const SYSTEM_PROMPT = ${JSON.stringify("You are a Pittsburghese translator. Convert standard American English into authentic Pittsburgh dialect — warm, funny, and full of local flavor. Always preserve the original meaning; just change the style.")};
+                const SYSTEM_PROMPT = ${JSON.stringify(SYSTEM_PROMPT)};
                 const FALLBACK_CHAT_TEMPLATE =
                     "{% if not add_generation_prompt is defined %}{% set add_generation_prompt = false %}{% endif %}" +
                     "{% for message in messages %}" +
@@ -472,6 +478,29 @@
                 let generatorPromise = null;
                 let generator = null;
                 let MODEL_ID = null;
+                let MODEL_REVISION = null;
+
+                function normalizeError(err) {
+                    let message = '';
+
+                    if (err?.message) {
+                        message = err.message;
+                    } else {
+                        try {
+                            message = JSON.stringify(err, Object.getOwnPropertyNames(err));
+                        } catch {
+                            message = String(err);
+                        }
+                    }
+
+                    if (message.includes('Could not locate file')) {
+                        message += "\\n\\nThe model repo is missing a required ONNX sidecar file. " +
+                                   "For q8 exports this is usually something like onnx/model_quantized.onnx_data " +
+                                   "next to onnx/model_quantized.onnx.";
+                    }
+
+                    return message || 'Unknown error';
+                }
 
                 async function getGenerator() {
                     if (generator) return generator;
@@ -481,18 +510,32 @@
                     env.allowLocalModels = false;
                     env.useBrowserCache = true;
 
-                    generatorPromise = pipeline('text-generation', MODEL_ID, {
+                    const options = {
                         device: 'wasm',
                         dtype: 'q8',
+                        use_external_data_format: true,
                         progress_callback: (x) => self.postMessage(x),
-                    }).then(instance => {
-                        generator = instance;
-                        if (!generator.tokenizer.chat_template) {
-                            generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
-                        }
-                        self.postMessage({ status: 'ready' });
-                        return instance;
-                    });
+                    };
+
+                    if (MODEL_REVISION) {
+                        options.revision = MODEL_REVISION;
+                    }
+
+                    generatorPromise = pipeline('text-generation', MODEL_ID, options)
+                        .then(instance => {
+                            generator = instance;
+
+                            if (!generator.tokenizer.chat_template) {
+                                generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
+                            }
+
+                            self.postMessage({ status: 'ready' });
+                            return instance;
+                        })
+                        .catch(err => {
+                            self.postMessage({ status: 'error', message: normalizeError(err) });
+                            throw err;
+                        });
 
                     return generatorPromise;
                 }
@@ -502,10 +545,12 @@
 
                     if (data.type === 'init') {
                         MODEL_ID = data.modelId;
+                        MODEL_REVISION = data.modelRevision || null;
+
                         try {
                             await getGenerator();
-                        } catch (err) {
-                            self.postMessage({ status: 'error', message: String(err?.message || err) });
+                        } catch {
+                            // Already reported above.
                         }
                         return;
                     }
@@ -548,7 +593,7 @@
                                 originalInput: data.text,
                             });
                         } catch (err) {
-                            self.postMessage({ status: 'error', message: String(err?.message || err) });
+                            self.postMessage({ status: 'error', message: normalizeError(err) });
                         }
                     }
                 });
@@ -620,6 +665,7 @@
                     }
 
                     case 'error':
+                        isReady = false;
                         isTranslating = false;
                         setBusy(false);
                         status.innerText = `Error: ${data.message || 'Unknown error'}`;
@@ -628,7 +674,11 @@
                 }
             });
 
-            worker.postMessage({ type: 'init', modelId: MODEL_ID });
+            worker.postMessage({
+                type: 'init',
+                modelId: MODEL_ID,
+                modelRevision: MODEL_REVISION,
+            });
         }
 
         btn.addEventListener('click', () => {
