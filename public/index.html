@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pittsburghese Translator</title>
+    <title>YinzerAI: A Pittsburghese Translator</title>
     <style>
         :root {
             color-scheme: light;
@@ -12,6 +12,7 @@
             --accent-hover: #ffc53d;
             --text: #111;
             --muted: #666;
+            --muted-strong: #4f5b66;
             --border: #d8dde3;
             --surface: #f8f9fa;
             --surface-2: #f1f3f5;
@@ -33,12 +34,12 @@
         }
 
         .hero {
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
 
         h1 {
-            margin: 0 0 8px;
-            font-size: clamp(1.9rem, 3vw, 2.45rem);
+            margin: 0 0 6px;
+            font-size: clamp(1.95rem, 3vw, 2.5rem);
             line-height: 1.08;
         }
 
@@ -48,9 +49,54 @@
             font-size: 1rem;
         }
 
+        .quiet-note {
+            margin-top: 10px;
+            border-radius: 12px;
+            border: 1px solid #e8ecf1;
+            background: #fcfcfd;
+            color: var(--muted-strong);
+            font-size: 0.92rem;
+            line-height: 1.42;
+            overflow: hidden;
+        }
+
+        .quiet-note summary {
+            cursor: pointer;
+            list-style: none;
+            padding: 10px 12px;
+            font-weight: 500;
+        }
+
+        .quiet-note summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .quiet-note summary::after {
+            content: "More";
+            float: right;
+            color: var(--muted);
+            font-weight: 400;
+            margin-left: 12px;
+        }
+
+        .quiet-note[open] summary::after {
+            content: "Less";
+        }
+
+        .quiet-note-body {
+            padding: 0 12px 10px;
+        }
+
+        .quiet-note a {
+            color: inherit;
+            font-weight: 600;
+            text-decoration-color: #c7d1db;
+            text-underline-offset: 2px;
+        }
+
         .stack {
             display: grid;
-            gap: 18px;
+            gap: 14px;
         }
 
         .card {
@@ -58,7 +104,7 @@
             border: 1px solid var(--border);
             border-radius: 18px;
             box-shadow: var(--shadow);
-            padding: 18px;
+            padding: 16px;
         }
 
         .row {
@@ -85,9 +131,9 @@
 
         textarea {
             width: 100%;
-            min-height: 132px;
+            min-height: 118px;
             padding: 14px;
-            margin: 12px 0 0;
+            margin: 10px 0 0;
             font-size: 16px;
             font-family: inherit;
             border: 1px solid #c9ccd1;
@@ -136,21 +182,21 @@
             gap: 10px;
             align-items: center;
             flex-wrap: wrap;
-            margin-top: 14px;
+            margin-top: 12px;
         }
 
         .status-row {
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            margin-top: 14px;
-            min-height: 26px;
+            margin-top: 12px;
+            min-height: 24px;
         }
 
         .status {
-            font-size: 0.95rem;
+            font-size: 0.93rem;
             color: #555;
-            min-height: 1.4em;
+            min-height: 1.35em;
             white-space: pre-wrap;
             word-break: break-word;
         }
@@ -177,8 +223,33 @@
             }
         }
 
+        .load-details {
+            margin-top: 8px;
+        }
+
+        .load-details summary {
+            color: var(--muted);
+            font-size: 0.88rem;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .load-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .load-details summary::after {
+            content: "Show";
+            margin-left: 8px;
+            color: var(--muted);
+        }
+
+        .load-details[open] summary::after {
+            content: "Hide";
+        }
+
         .progress-wrap {
-            margin-top: 12px;
+            margin-top: 8px;
             display: none;
             gap: 8px;
             flex-direction: column;
@@ -217,11 +288,11 @@
         }
 
         #output {
-            margin-top: 12px;
+            margin-top: 10px;
             padding: 16px;
             background: var(--surface);
             border: 1px solid #e4e8ec;
-            min-height: 132px;
+            min-height: 112px;
             font-size: 18px;
             border-radius: 12px;
             white-space: pre-wrap;
@@ -229,7 +300,7 @@
 
         .hint {
             color: var(--muted);
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             margin-top: 8px;
         }
 
@@ -246,24 +317,127 @@
             font-weight: 600;
         }
 
+        @media (min-width: 641px) {
+            .load-details summary {
+                display: none;
+            }
+
+            .load-details {
+                margin-top: 8px;
+            }
+
+            .load-details>#progressWrap {
+                display: flex !important;
+            }
+        }
+
         @media (max-width: 640px) {
             body {
-                margin: 20px auto;
-                padding: 14px;
+                margin: 12px auto;
+                padding: 12px;
+            }
+
+            .hero {
+                margin-bottom: 10px;
+            }
+
+            h1 {
+                margin-bottom: 4px;
+                font-size: 1.6rem;
+                line-height: 1.05;
+            }
+
+            .subhead {
+                font-size: 0.94rem;
+                line-height: 1.35;
+            }
+
+            .quiet-note {
+                font-size: 0.88rem;
+                line-height: 1.35;
+            }
+
+            .quiet-note summary {
+                padding: 9px 10px;
+            }
+
+            .quiet-note-body {
+                padding: 0 10px 9px;
+            }
+
+            .stack {
+                gap: 12px;
             }
 
             .card {
-                padding: 14px;
+                padding: 12px;
+                border-radius: 14px;
             }
 
             .controls,
             .row {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 8px;
             }
 
             button {
                 width: 100%;
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+
+            textarea {
+                min-height: 92px;
+                padding: 12px;
+                margin-top: 8px;
+                font-size: 16px;
+            }
+
+            .status-row {
+                gap: 8px;
+                margin-top: 10px;
+            }
+
+            .status {
+                font-size: 0.89rem;
+                line-height: 1.35;
+            }
+
+            .load-details {
+                margin-top: 6px;
+            }
+
+            .load-details:not([open]) #progressWrap {
+                display: none !important;
+            }
+
+            .load-details[open] #progressWrap {
+                display: flex !important;
+            }
+
+            .progress-label {
+                font-size: 0.8rem;
+                padding: 6px 8px 0;
+            }
+
+            .progress-bar-outer {
+                margin: 4px 8px 8px;
+                height: 10px;
+            }
+
+            #output {
+                min-height: 92px;
+                margin-top: 8px;
+                padding: 12px;
+                font-size: 17px;
+            }
+
+            .hint,
+            .meta,
+            .panel-title,
+            .badge {
+                font-size: 0.84rem;
             }
         }
     </style>
@@ -271,21 +445,32 @@
 
 <body>
     <div class="hero">
-        <h1>Pittsburghese Translator, n'at</h1>
+        <h1>YinzerAI: A Pittsburghese Translator</h1>
         <p class="subhead">
-            Runs fully in your browser. Type plain English and get back a Pittsburgh-style rewrite with
-            streaming output.
+            A small AI language model that rewrites plain English into Pittsburghese, right in your browser.
         </p>
+
+        <details class="quiet-note" id="aboutNote">
+            <summary>Experimental local AI by Dev4PGH. Your text stays on your device. First load may take a minute.
+            </summary>
+            <div class="quiet-note-body">
+                Built by <a href="https://dev4pgh.com/" target="_blank" rel="noopener noreferrer">Dev4PGH</a>.
+                This small LLM runs locally in your browser, so your text is not sent off to a cloud AI service.
+                It is much smaller than something like ChatGPT, so it may occasionally make mistakes, but that is the
+                tradeoff that lets this tiny little yinz-ifier run on your own device.
+            </div>
+        </details>
     </div>
 
     <div class="stack">
         <section class="card">
             <div class="row spread">
-                <div class="panel-title">Standard English</div>
+                <div class="panel-title">Plain English</div>
                 <div class="meta" id="inputMeta">0 characters</div>
             </div>
 
-            <textarea id="inputText" placeholder="Type standard English here..."></textarea>
+            <textarea id="inputText"
+                placeholder="Try something like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game."></textarea>
 
             <div class="controls">
                 <button id="translateBtn" disabled>Translate</button>
@@ -295,24 +480,28 @@
 
             <div class="status-row">
                 <div id="spinner" class="spinner visible" aria-hidden="true"></div>
-                <div class="status" id="statusText">Status: Loading model…</div>
+                <div class="status" id="statusText">Getting the local AI ready… first load can take a minute.</div>
             </div>
 
-            <div id="progressWrap" class="progress-wrap visible"></div>
+            <details class="load-details" id="loadDetails">
+                <summary>Loading details</summary>
+                <div id="progressWrap" class="progress-wrap visible"></div>
+            </details>
+
             <div class="hint">Tip: press Ctrl/Cmd + Enter to translate.</div>
         </section>
 
-        <section class="card">
+        <section class="card" id="outputCard">
             <div class="row spread">
                 <div class="panel-title">Pittsburghese</div>
                 <div class="row" style="gap:10px;">
-                    <div class="badge" id="modelBadge">Loading model</div>
+                    <div class="badge" id="modelBadge">Loading</div>
                     <div class="meta" id="outputMeta">Ready when you are</div>
                     <button id="copyBtn" class="secondary" type="button">Copy output</button>
                 </div>
             </div>
 
-            <div id="output">Translation will appear here...</div>
+            <div id="output" aria-live="polite">Translation will appear here...</div>
         </section>
     </div>
 
@@ -340,15 +529,24 @@
             "Please stop acting like a jerk and help me carry these groceries."
         ];
 
+        const STATUS_LOADING_INIT = 'Getting the local AI ready… first load can take a minute.';
+        const STATUS_LOADING_FILES = 'Downloading the model to your browser… this is usually the slow part.';
+        const STATUS_READY = 'Ready. This AI is running locally on your device.';
+        const STATUS_TRANSLATING = 'Translating locally…';
+        const STATUS_DONE = 'Done.';
+        const STATUS_QUEUED = 'Still loading the local AI… your translation will start automatically.';
+
         const btn = document.getElementById('translateBtn');
         const randomBtn = document.getElementById('randomBtn');
         const clearBtn = document.getElementById('clearBtn');
         const copyBtn = document.getElementById('copyBtn');
         const input = document.getElementById('inputText');
         const output = document.getElementById('output');
+        const outputCard = document.getElementById('outputCard');
         const status = document.getElementById('statusText');
         const spinner = document.getElementById('spinner');
         const progressWrap = document.getElementById('progressWrap');
+        const loadDetails = document.getElementById('loadDetails');
         const inputMeta = document.getElementById('inputMeta');
         const outputMeta = document.getElementById('outputMeta');
         const modelBadge = document.getElementById('modelBadge');
@@ -377,11 +575,36 @@
             if (escapedInput) {
                 cleaned = cleaned.replace(new RegExp(`^${escapedInput}\\s*`, 'i'), '').trim();
             }
+
             return cleaned.trim();
+        }
+
+        function isMobileLayout() {
+            return window.innerWidth <= 640;
         }
 
         function setBusy(visible) {
             spinner.classList.toggle('visible', visible);
+        }
+
+        function setStatus(message) {
+            status.innerText = message;
+        }
+
+        function setLoadDetailsOpen(shouldOpen) {
+            if (!loadDetails || !isMobileLayout()) return;
+            loadDetails.open = shouldOpen;
+        }
+
+        function scrollOutputIntoView() {
+            if (!isMobileLayout()) return;
+
+            requestAnimationFrame(() => {
+                outputCard.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                });
+            });
         }
 
         function updateButtons() {
@@ -396,17 +619,18 @@
             const text = output.innerText.trim();
 
             if (!text || text === 'Translation will appear here...') {
-                outputMeta.textContent = isReady ? 'Model loaded' : 'Loading model';
+                outputMeta.textContent = isReady ? 'Runs on this device' : 'Loading model';
             } else {
                 outputMeta.textContent = `${text.length} characters`;
             }
 
-            modelBadge.textContent = isReady ? 'Model ready' : 'Loading model';
+            modelBadge.textContent = isReady ? 'Local AI' : 'Loading';
             updateButtons();
         }
 
         function renderProgress() {
             progressWrap.innerHTML = '';
+
             if (progressMap.size === 0) {
                 progressWrap.classList.remove('visible');
                 return;
@@ -445,9 +669,10 @@
             isTranslating = true;
             output.innerText = '';
             outputMeta.textContent = 'Streaming…';
-            status.innerText = 'Status: Translating...';
+            setStatus(STATUS_TRANSLATING);
             setBusy(true);
             updateButtons();
+            scrollOutputIntoView();
 
             worker.postMessage({
                 type: 'translate',
@@ -494,9 +719,7 @@
                     }
 
                     if (message.includes('Could not locate file')) {
-                        message += "\\n\\nThe model repo is missing a required ONNX sidecar file. " +
-                                   "For q8 exports this is usually something like onnx/model_quantized.onnx_data " +
-                                   "next to onnx/model_quantized.onnx.";
+                        message += "\\n\\nThe model repo is missing a required ONNX sidecar file.";
                     }
 
                     return message || 'Unknown error';
@@ -550,7 +773,6 @@
                         try {
                             await getGenerator();
                         } catch {
-                            // Already reported above.
                         }
                         return;
                     }
@@ -561,7 +783,7 @@
 
                             const messages = [
                                 { role: 'system', content: SYSTEM_PROMPT },
-                                { role: 'user', content: 'Translate to Pittsburghese:\\n' + data.text },
+                                { role: 'user', content: data.text },
                             ];
 
                             let streamed = '';
@@ -610,7 +832,8 @@
                         progressMap.set(data.file, { file: data.file, progress: 0 });
                         renderProgress();
                         setBusy(true);
-                        status.innerText = 'Status: Loading model files...';
+                        setStatus(STATUS_LOADING_FILES);
+                        setLoadDetailsOpen(true);
                         break;
 
                     case 'progress':
@@ -620,7 +843,8 @@
                         });
                         renderProgress();
                         setBusy(true);
-                        status.innerText = 'Status: Loading model files...';
+                        setStatus(STATUS_LOADING_FILES);
+                        setLoadDetailsOpen(true);
                         break;
 
                     case 'done':
@@ -631,10 +855,13 @@
                     case 'ready':
                         isReady = true;
                         setBusy(false);
+
                         if (progressMap.size === 0) {
                             progressWrap.classList.remove('visible');
                         }
-                        status.innerText = 'Status: Model loaded.';
+
+                        setStatus(STATUS_READY);
+                        setLoadDetailsOpen(false);
                         updateMeta();
 
                         if (queuedText && !isTranslating) {
@@ -659,7 +886,8 @@
                         );
 
                         output.innerText = finalText || '[No text generated]';
-                        status.innerText = 'Status: Done!';
+                        setStatus(STATUS_DONE);
+                        scrollOutputIntoView();
                         updateMeta();
                         break;
                     }
@@ -668,7 +896,8 @@
                         isReady = false;
                         isTranslating = false;
                         setBusy(false);
-                        status.innerText = `Error: ${data.message || 'Unknown error'}`;
+                        setLoadDetailsOpen(true);
+                        setStatus(`Error: ${data.message || 'Unknown error'}`);
                         updateMeta();
                         break;
                 }
@@ -687,8 +916,9 @@
 
             if (!isReady) {
                 queuedText = text;
-                status.innerText = 'Status: Loading model first, then translating...';
+                setStatus(STATUS_QUEUED);
                 setBusy(true);
+                setLoadDetailsOpen(true);
                 return;
             }
 
@@ -701,7 +931,10 @@
             queuedText = null;
             input.value = '';
             output.innerText = 'Translation will appear here...';
-            status.innerText = isReady ? 'Status: Model loaded.' : 'Status: Loading model...';
+            setStatus(isReady ? STATUS_READY : STATUS_LOADING_INIT);
+            if (isReady) {
+                setLoadDetailsOpen(false);
+            }
             updateMeta();
             input.focus();
         });
