@@ -584,22 +584,43 @@
             "Begin your reply immediately with the first translated word. " +
             "Do not write any label, heading, or prefix before the translation.";
 
+        // Each prompt is chosen to hit multiple Pittsburghese substitutions,
+        // so the random button actually demonstrates the model's vocabulary.
+        //
+        // Substitutions covered across the set:
+        //   yinz, Stillers, Pens, Buccos, dahntahn, redd up, worsh, slippy,
+        //   crick, pop, gumband, jagoff, nebby, dippy eggs, n-em, supper, aht
         const RANDOM_PROMPTS = [
+            // redd up, dahntahn
             "Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.",
+            // them roads, slippy
             "The roads might get slippery tonight, so we should probably leave early.",
+            // yinz, pop, gumband
             "Can you grab me a soda and a rubber band from the drawer?",
+            // nebby
             "My neighbor is so nosy about everybody's business.",
+            // dahntahn, supper
             "We can stop downtown after supper if traffic is not too bad.",
+            // worsh, redd up
             "Please wash the dishes before bed, and then help me clean up the living room.",
+            // yinz, Stillers
             "You guys should come over and watch the Steelers game with us.",
-            "I need to run out, grab groceries, and get home before the rain starts.",
-            "That hill gets slippery every single time it snows.",
+            // jagoff
             "Please stop acting like a jerk and help me carry these groceries.",
+            // Pens
             "The Penguins looked great in the third period last night.",
-            "I can't believe how gray it has been all week.",
+            // dahn, crick
             "Go down the hill, cross the creek, and turn left at the church.",
+            // jagoff, dahntahn
             "Some idiot parked right in front of my driveway again.",
+            // mom-n-em, supper
             "My mom and her friends are coming over for supper tonight.",
+            // yinz, Stillers, dippy eggs, pop
+            "You guys should come over for the Steelers game. I am making over-easy eggs and we have plenty of soda.",
+            // them sidewalks, slippy, crick, redd up
+            "The sidewalks are getting slippery and the creek is already running high. We should just stay in and clean up.",
+            // aunt-n-em, supper, worsh, redd up
+            "My aunt and her kids are coming over for dinner, so I need to wash the dishes and clean up the kitchen first.",
         ];
 
         const OUTPUT_PLACEHOLDER = "Yinz translation will show up here once the model loads, n'at.";
