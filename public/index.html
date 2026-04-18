@@ -379,6 +379,73 @@
             font-weight: 600;
         }
 
+        /* ── Footer ───────────────────────────────────────────────────────── */
+
+        .footer {
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-cta {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+        }
+
+        .footer-cta p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .footer-cta a {
+            color: #6b5700;
+            font-weight: 700;
+            text-underline-offset: 2px;
+        }
+
+        .footer-cta a:hover {
+            color: #000;
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 20px;
+            align-items: center;
+        }
+
+        .footer-links a {
+            font-size: 0.88rem;
+            color: var(--muted);
+            text-decoration: none;
+            text-underline-offset: 2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: color 0.12s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--text);
+            text-decoration: underline;
+        }
+
+        .footer-links .link-icon {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .footer-links a:hover .link-icon {
+            opacity: 1;
+        }
+
         /* ── Mobile ───────────────────────────────────────────────────────── */
 
         @media (max-width: 640px) {
@@ -481,6 +548,27 @@
             .badge {
                 font-size: 0.84rem;
             }
+
+            .footer {
+                margin-top: 22px;
+                padding-top: 16px;
+            }
+
+            .footer-cta {
+                padding: 12px 14px;
+            }
+
+            .footer-cta p {
+                font-size: 0.9rem;
+            }
+
+            .footer-links {
+                gap: 5px 16px;
+            }
+
+            .footer-links a {
+                font-size: 0.84rem;
+            }
         }
     </style>
 </head>
@@ -564,6 +652,66 @@
         </section>
     </div>
 
+    <footer class="footer">
+        <div class="footer-cta">
+            <p>
+                Like what yinz see? <a href="https://dev4pgh.com/" target="_blank" rel="noopener noreferrer">Dev4PGH</a>
+                builds custom AI tools, web apps, and other clever things. If you need something like this
+                built for your business or project, <a href="https://dev4pgh.com/#contact" target="_blank"
+                    rel="noopener noreferrer">get in touch</a>.
+            </p>
+        </div>
+        <div class="footer-links">
+            <a href="https://dev4pgh.com/" target="_blank" rel="noopener noreferrer">
+                <!-- globe icon -->
+                <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path
+                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                Dev4PGH
+            </a>
+            <a href="https://huggingface.co/Dev4PGH/smol-pittsburghese-model" target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true" style="font-size:1em;line-height:1;">🤗</span>
+                Model on Hugging Face
+            </a>
+            <a href="https://github.com/dev4pgh/pittsburghese-training" target="_blank" rel="noopener noreferrer">
+                <!-- github icon -->
+                <svg class="link-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path
+                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" />
+                </svg>
+                Training code
+            </a>
+            <a href="https://github.com/dev4pgh/pittsburghese-web" target="_blank" rel="noopener noreferrer">
+                <svg class="link-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path
+                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" />
+                </svg>
+                Web interface code
+            </a>
+            <a href="https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct" target="_blank"
+                rel="noopener noreferrer">
+                <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
+                Base model: SmolLM2-135M
+            </a>
+            <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener noreferrer">
+                <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
+                Powered by Transformers.js
+            </a>
+        </div>
+    </footer>
+
     <script src="./config.js"></script>
     <script type="module">
         const MODEL_ID = window.APP_CONFIG?.MODEL_ID || 'Dev4PGH/smol-pittsburghese-model';
@@ -616,7 +764,7 @@
             // mom-n-em, supper
             "My mom and her friends are coming over for supper tonight.",
             // yinz, Stillers, dippy eggs, pop
-            "You guys should come over for the Steelers game. We have plenty of soda for you.",
+            "You guys should come over for the Steelers game. I am making pierogies and we have plenty of soda for you.",
             // them sidewalks, slippy, crick, redd up
             "The sidewalks are getting slippery and the creek is already running high. We should just stay in and clean up.",
             // aunt-n-em, supper, worsh, redd up
