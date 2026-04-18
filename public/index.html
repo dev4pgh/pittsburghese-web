@@ -274,7 +274,6 @@
             transition: width 0.25s ease-out;
         }
 
-        /* Animated shimmer while total size is not yet known */
         .load-overall-bar-inner.indeterminate {
             width: 100%;
             background: linear-gradient(90deg,
@@ -297,7 +296,6 @@
             }
         }
 
-        /* Per-file breakdown (smaller, secondary) */
         .load-files {
             display: flex;
             flex-direction: column;
@@ -498,7 +496,6 @@
                 This small LLM runs locally in your browser, so your text is not sent off to a cloud AI service.
                 It is much smaller than something like ChatGPT, so it may occasionally make mistakes, but that is the
                 tradeoff that lets this tiny little yinz-ifier run on your own device.
-                Multi-paragraph texts are translated one paragraph at a time for better results.
             </div>
         </details>
     </div>
@@ -511,7 +508,7 @@
             </div>
 
             <textarea id="inputText"
-                placeholder="Try something like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.&#10;&#10;Multi-paragraph texts work too — separate paragraphs with a blank line."></textarea>
+                placeholder="Try something like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game."></textarea>
 
             <div class="controls">
                 <button id="translateBtn" disabled>Translate</button>
@@ -524,7 +521,6 @@
                 <div class="status" id="statusText">Getting the local AI ready… first load can take a minute.</div>
             </div>
 
-            <!-- Always-visible loading progress: no manual expand needed -->
             <div id="loadSection" class="load-section" aria-live="polite">
                 <div>
                     <div class="load-overall-header">
@@ -538,8 +534,7 @@
                 <div id="loadFiles" class="load-files"></div>
             </div>
 
-            <div class="hint">Tip: press Ctrl/Cmd + Enter to translate. Separate paragraphs with a blank line for
-                multi-paragraph texts.</div>
+            <div class="hint">Tip: press Ctrl/Cmd + Enter to translate.</div>
         </section>
 
         <section class="card" id="outputCard">
@@ -573,8 +568,11 @@
             "Do not paraphrase, summarize, or add content that was not in the original. " +
             "Do not ask questions or add commentary. " +
             "Do not apologize or respond as an AI assistant. " +
-            "Reply with the Pittsburghese translation only.";
+            "Begin your reply immediately with the first translated word. " +
+            "Do not write any label, heading, or prefix before the translation.";
 
+        // Short single/two-sentence prompts only — keeps the demo snappy and
+        // avoids multi-paragraph edge cases the small model handles less reliably.
         const RANDOM_PROMPTS = [
             "Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.",
             "The roads might get slippery tonight, so we should probably leave early.",
@@ -586,8 +584,11 @@
             "I need to run out, grab groceries, and get home before the rain starts.",
             "That hill gets slippery every single time it snows.",
             "Please stop acting like a jerk and help me carry these groceries.",
-            "Every Saturday morning my dad would take us down to the Strip District to pick up food for the week. We would leave early, before the parking got bad, and walk from one end to the other with bags that were always too small by the time we were done.\n\nWe always stopped at the same bakery first, then worked our way down toward the fish stands. By the time we got back to the car, we had bread, pierogies, and usually a dozen things we had not planned on buying.",
-            "After a real snowstorm, the neighborhood had a way of slowing down that felt almost planned. The plows would come through the main road first, which meant the side streets stayed buried for hours.\n\nThe kids were always outside before the adults had finished their coffee. They would be down the hill before anyone could tell them to be careful."
+            "The Penguins looked great in the third period last night.",
+            "I can't believe how gray it has been all week.",
+            "Go down the hill, cross the creek, and turn left at the church.",
+            "Some idiot parked right in front of my driveway again.",
+            "My mom and her friends are coming over for supper tonight.",
         ];
 
         const STATUS_LOADING_INIT = 'Getting the local AI ready… first load can take a minute.';
@@ -595,6 +596,23 @@
         const STATUS_TRANSLATING = 'Translating locally…';
         const STATUS_DONE = 'Done.';
         const STATUS_QUEUED = 'Still loading the local AI… your translation will start automatically.';
+
+        // Strips two categories of output artifact from each completed chunk:
+        //
+        // 1. Verbatim prompt echo — the model repeating the user's input before
+        //    the translation (caught by exact-match prefix removal).
+        //
+        // 2. Translation label prefix — the base model occasionally generates a
+        //    task framing label such as "Translate to Pixburgese:" or
+        //    "Pittsburghese:" before the actual translation. PREFIX_RE catches
+        //    these. The training prompt also now explicitly forbids them.
+        //
+        // 3. Spurious "Anymore," prefix — the model occasionally opens with
+        //    "Anymore," (a valid Pittsburgh expression meaning "nowadays") on
+        //    sentences where it makes no sense, e.g. specific weather statements.
+        //    ANYMORE_RE catches this at the start of a chunk only.
+        const PREFIX_RE = /^(?:(?:translate(?:\s+to\s+[\w\s]+)?|translation|pittsburghese|pixburg(?:ese|h)?|yinzer(?:ai)?)\s*:?\s*)+/i;
+        const ANYMORE_RE = /^Anymore,\s*/;
 
         const btn = document.getElementById('translateBtn');
         const randomBtn = document.getElementById('randomBtn');
@@ -618,10 +636,6 @@
         let isReady = false;
         let isTranslating = false;
         let queuedText = null;
-
-        // Each entry: { file, loaded, total, progress, done }
-        // Files are marked done (not deleted) so their byte counts remain
-        // in the aggregate total until the model finishes loading entirely.
         const progressMap = new Map();
 
         let chunkQueue = [];
@@ -641,11 +655,28 @@
             return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         }
 
-        function stripPromptEcho(text, originalInput) {
+        function stripArtifacts(text, originalInput) {
             let cleaned = (text || '').trim();
+
+            // 1. Remove verbatim prompt echo.
             const escaped = originalInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim();
-            if (escaped) cleaned = cleaned.replace(new RegExp(`^${escaped}\\s*`, 'i'), '').trim();
-            return cleaned.trim();
+            if (escaped) {
+                cleaned = cleaned.replace(new RegExp(`^${escaped}\\s*`, 'i'), '').trim();
+            }
+
+            // 2. Remove translation-task label prefix.
+            cleaned = cleaned.replace(PREFIX_RE, '').trim();
+
+            // 3. Remove spurious "Anymore," when the source text does not begin
+            //    with "anymore", "nowadays", or "these days" — those are the only
+            //    contexts where the Pittsburgh usage is correct.
+            const srcLower = originalInput.trim().toLowerCase();
+            const srcStartsWithAnymore = /^(anymore|nowadays|these days)\b/.test(srcLower);
+            if (!srcStartsWithAnymore) {
+                cleaned = cleaned.replace(ANYMORE_RE, '').trim();
+            }
+
+            return cleaned;
         }
 
         function isMobileLayout() { return window.innerWidth <= 640; }
@@ -682,23 +713,15 @@
 
         function renderProgress() {
             const entries = [...progressMap.values()];
-
-            if (entries.length === 0) {
-                loadSection.classList.remove('visible');
-                return;
-            }
-
+            if (entries.length === 0) { loadSection.classList.remove('visible'); return; }
             loadSection.classList.add('visible');
 
-            // Aggregate bytes across all files including completed ones.
-            let totalLoaded = 0;
-            let totalBytes = 0;
+            let totalLoaded = 0, totalBytes = 0;
             for (const e of entries) {
                 totalLoaded += e.loaded || 0;
                 totalBytes += e.total || 0;
             }
 
-            // Overall bar and label.
             if (totalBytes > 0) {
                 const pct = Math.min((totalLoaded / totalBytes) * 100, 100);
                 loadOverallBar.classList.remove('indeterminate');
@@ -717,32 +740,23 @@
                 loadOverallPct.textContent = '';
             }
 
-            // Per-file rows — only active (not yet done) files.
             const active = entries.filter(e => !e.done);
             loadFiles.innerHTML = '';
-
             for (const item of active) {
                 const row = document.createElement('div');
                 row.className = 'load-file-row';
-
                 const name = document.createElement('span');
                 name.className = 'load-file-name';
                 name.textContent = item.file.split('/').pop();
                 name.title = item.file;
-
                 const barOuter = document.createElement('div');
                 barOuter.className = 'load-file-bar-outer';
-
                 const barInner = document.createElement('div');
                 barInner.className = 'load-file-bar-inner';
                 barInner.style.width = `${item.progress ?? 0}%`;
-
                 const pct = document.createElement('span');
                 pct.className = 'load-file-pct';
-                pct.textContent = item.total > 0
-                    ? `${Math.round(item.progress ?? 0)}%`
-                    : '…';
-
+                pct.textContent = item.total > 0 ? `${Math.round(item.progress ?? 0)}%` : '…';
                 barOuter.appendChild(barInner);
                 row.appendChild(name);
                 row.appendChild(barOuter);
@@ -893,21 +907,11 @@
                 switch (data.status) {
 
                     case 'initiate':
-                        progressMap.set(data.file, {
-                            file: data.file,
-                            loaded: 0,
-                            total: 0,
-                            progress: 0,
-                            done: false,
-                        });
-                        renderProgress();
-                        setBusy(true);
-                        setStatus(STATUS_LOADING_INIT);
+                        progressMap.set(data.file, { file: data.file, loaded: 0, total: 0, progress: 0, done: false });
+                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_INIT);
                         break;
 
                     case 'progress':
-                        // Transformers.js includes loaded/total in bytes alongside
-                        // the 0–100 progress float — capture all three.
                         progressMap.set(data.file, {
                             file: data.file,
                             loaded: data.loaded || 0,
@@ -915,39 +919,23 @@
                             progress: data.progress ?? 0,
                             done: false,
                         });
-                        renderProgress();
-                        setBusy(true);
-                        setStatus(STATUS_LOADING_INIT);
+                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_INIT);
                         break;
 
                     case 'done': {
-                        // Mark done so the per-file row disappears, but keep in
-                        // the map so its bytes stay in the aggregate total.
                         const prev = progressMap.get(data.file);
                         if (prev) {
-                            progressMap.set(data.file, {
-                                ...prev,
-                                loaded: prev.total || prev.loaded,
-                                progress: 100,
-                                done: true,
-                            });
+                            progressMap.set(data.file, { ...prev, loaded: prev.total || prev.loaded, progress: 100, done: true });
                         }
                         renderProgress();
                         break;
                     }
 
                     case 'ready':
-                        isReady = true;
-                        setBusy(false);
-                        progressMap.clear();
-                        loadSection.classList.remove('visible');
-                        setStatus(STATUS_READY);
-                        updateMeta();
-                        if (queuedText && !isTranslating) {
-                            const t = queuedText;
-                            queuedText = null;
-                            startTranslation(t);
-                        }
+                        isReady = true; setBusy(false);
+                        progressMap.clear(); loadSection.classList.remove('visible');
+                        setStatus(STATUS_READY); updateMeta();
+                        if (queuedText && !isTranslating) { const t = queuedText; queuedText = null; startTranslation(t); }
                         break;
 
                     case 'update': {
@@ -961,7 +949,7 @@
                     }
 
                     case 'complete': {
-                        const finalChunkText = stripPromptEcho(
+                        const finalChunkText = stripArtifacts(
                             (data.streamed || currentChunkBuffer || '').trim(),
                             data.originalInput || ''
                         );
@@ -971,24 +959,16 @@
                             output.innerText = chunkResults.join('\n\n');
                             sendNextChunk();
                         } else {
-                            isTranslating = false;
-                            setBusy(false);
+                            isTranslating = false; setBusy(false);
                             output.innerText = chunkResults.join('\n\n') || '[No text generated]';
-                            setStatus(STATUS_DONE);
-                            scrollOutputIntoView();
-                            updateMeta();
+                            setStatus(STATUS_DONE); scrollOutputIntoView(); updateMeta();
                         }
                         break;
                     }
 
                     case 'error':
-                        isReady = false;
-                        isTranslating = false;
-                        chunkQueue = [];
-                        currentChunkBuffer = '';
-                        setBusy(false);
-                        setStatus(`Error: ${data.message || 'Unknown error'}`);
-                        updateMeta();
+                        isReady = false; isTranslating = false; chunkQueue = []; currentChunkBuffer = '';
+                        setBusy(false); setStatus(`Error: ${data.message || 'Unknown error'}`); updateMeta();
                         break;
                 }
             });
@@ -999,27 +979,18 @@
         btn.addEventListener('click', () => {
             const text = input.value.trim();
             if (!text) return;
-            if (!isReady) {
-                queuedText = text;
-                setStatus(STATUS_QUEUED);
-                setBusy(true);
-                return;
-            }
+            if (!isReady) { queuedText = text; setStatus(STATUS_QUEUED); setBusy(true); return; }
             startTranslation(text);
         });
 
         randomBtn.addEventListener('click', pickRandomPrompt);
 
         clearBtn.addEventListener('click', () => {
-            queuedText = null;
-            chunkQueue = [];
-            chunkResults = [];
-            currentChunkBuffer = '';
+            queuedText = null; chunkQueue = []; chunkResults = []; currentChunkBuffer = '';
             input.value = '';
             output.innerText = 'Translation will appear here...';
             setStatus(isReady ? STATUS_READY : STATUS_LOADING_INIT);
-            updateMeta();
-            input.focus();
+            updateMeta(); input.focus();
         });
 
         copyBtn.addEventListener('click', async () => {
@@ -1041,8 +1012,7 @@
         input.addEventListener('keydown', (event) => {
             const isMac = navigator.platform.toUpperCase().includes('MAC');
             if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'Enter') {
-                event.preventDefault();
-                btn.click();
+                event.preventDefault(); btn.click();
             }
         });
 
