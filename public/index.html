@@ -458,6 +458,7 @@
                 This small LLM runs locally in your browser, so your text is not sent off to a cloud AI service.
                 It is much smaller than something like ChatGPT, so it may occasionally make mistakes, but that is the
                 tradeoff that lets this tiny little yinz-ifier run on your own device.
+                Multi-paragraph texts are translated one paragraph at a time for better results.
             </div>
         </details>
     </div>
@@ -470,7 +471,7 @@
             </div>
 
             <textarea id="inputText"
-                placeholder="Try something like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game."></textarea>
+                placeholder="Try something like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.&#10;&#10;Multi-paragraph texts work too — separate paragraphs with a blank line."></textarea>
 
             <div class="controls">
                 <button id="translateBtn" disabled>Translate</button>
@@ -488,7 +489,8 @@
                 <div id="progressWrap" class="progress-wrap visible"></div>
             </details>
 
-            <div class="hint">Tip: press Ctrl/Cmd + Enter to translate.</div>
+            <div class="hint">Tip: press Ctrl/Cmd + Enter to translate. Separate paragraphs with a blank line for
+                multi-paragraph texts.</div>
         </section>
 
         <section class="card" id="outputCard">
@@ -510,11 +512,19 @@
         const MODEL_ID = window.APP_CONFIG?.MODEL_ID || 'Dev4PGH/pittsburghese-model';
         const MODEL_REVISION = window.APP_CONFIG?.MODEL_REVISION || null;
 
+        // ── Single source of truth for the system prompt ──────────────────────
+        // Must match SYSTEM_PROMPT in:
+        //   phase1_prep_dataset_prompt_completion.py
+        //   phase3_inference_prompt_completion.py
         const SYSTEM_PROMPT =
             "You are a Pittsburghese translator. " +
-            "Convert standard American English into authentic Pittsburgh dialect — " +
-            "warm, funny, and full of local flavor. " +
-            "Always preserve the original meaning; just change the style.";
+            "Rewrite the user's text in authentic Pittsburghese. " +
+            "Keep the original sentence structure and all non-Pittsburghese words exactly as written. " +
+            "Only substitute specific Pittsburghese vocabulary and expressions. " +
+            "Do not paraphrase, summarize, or add content that was not in the original. " +
+            "Do not ask questions or add commentary. " +
+            "Do not apologize or respond as an AI assistant. " +
+            "Reply with the Pittsburghese translation only.";
 
         const RANDOM_PROMPTS = [
             "Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.",
@@ -526,7 +536,9 @@
             "You guys should come over and watch the Steelers game with us.",
             "I need to run out, grab groceries, and get home before the rain starts.",
             "That hill gets slippery every single time it snows.",
-            "Please stop acting like a jerk and help me carry these groceries."
+            "Please stop acting like a jerk and help me carry these groceries.",
+            "Every Saturday morning my dad would take us down to the Strip District to pick up food for the week. We would leave early, before the parking got bad, and walk from one end to the other with bags that were always too small by the time we were done.\n\nWe always stopped at the same bakery first, then worked our way down toward the fish stands. By the time we got back to the car, we had bread, pierogies, and usually a dozen things we had not planned on buying.",
+            "After a real snowstorm, the neighborhood had a way of slowing down that felt almost planned. The plows would come through the main road first, which meant the side streets stayed buried for hours.\n\nThe kids were always outside before the adults had finished their coffee. They would be down the hill before anyone could tell them to be careful."
         ];
 
         const STATUS_LOADING_INIT = 'Getting the local AI ready… first load can take a minute.';
@@ -557,54 +569,42 @@
         let queuedText = null;
         const progressMap = new Map();
 
-        function clamp(value, min, max) {
-            return Math.max(min, Math.min(max, value));
-        }
+        let chunkQueue = [];
+        let chunkResults = [];
+        let totalChunks = 0;
+        let currentChunkIndex = 0;
+        let currentChunkBuffer = '';
+
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
         function adaptiveMaxNewTokens(text) {
             const words = text.trim().split(/\s+/).filter(Boolean).length;
-            return clamp(Math.round(words * 2.1) + 18, 24, 220);
+            return clamp(Math.round(words * 1.6) + 32, 48, 1400);
+        }
+
+        function splitParagraphs(text) {
+            return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         }
 
         function stripPromptEcho(text, originalInput) {
             let cleaned = (text || '').trim();
-            const escapedInput = originalInput
-                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-                .trim();
-
-            if (escapedInput) {
-                cleaned = cleaned.replace(new RegExp(`^${escapedInput}\\s*`, 'i'), '').trim();
-            }
-
+            const escaped = originalInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim();
+            if (escaped) cleaned = cleaned.replace(new RegExp(`^${escaped}\\s*`, 'i'), '').trim();
             return cleaned.trim();
         }
 
-        function isMobileLayout() {
-            return window.innerWidth <= 640;
-        }
+        function isMobileLayout() { return window.innerWidth <= 640; }
+        function setBusy(v) { spinner.classList.toggle('visible', v); }
+        function setStatus(msg) { status.innerText = msg; }
 
-        function setBusy(visible) {
-            spinner.classList.toggle('visible', visible);
-        }
-
-        function setStatus(message) {
-            status.innerText = message;
-        }
-
-        function setLoadDetailsOpen(shouldOpen) {
+        function setLoadDetailsOpen(open) {
             if (!loadDetails || !isMobileLayout()) return;
-            loadDetails.open = shouldOpen;
+            loadDetails.open = open;
         }
 
         function scrollOutputIntoView() {
             if (!isMobileLayout()) return;
-
-            requestAnimationFrame(() => {
-                outputCard.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                });
-            });
+            requestAnimationFrame(() => outputCard.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         }
 
         function updateButtons() {
@@ -617,43 +617,31 @@
         function updateMeta() {
             inputMeta.textContent = `${input.value.length} characters`;
             const text = output.innerText.trim();
-
             if (!text || text === 'Translation will appear here...') {
                 outputMeta.textContent = isReady ? 'Runs on this device' : 'Loading model';
             } else {
                 outputMeta.textContent = `${text.length} characters`;
             }
-
             modelBadge.textContent = isReady ? 'Local AI' : 'Loading';
             updateButtons();
         }
 
         function renderProgress() {
             progressWrap.innerHTML = '';
-
-            if (progressMap.size === 0) {
-                progressWrap.classList.remove('visible');
-                return;
-            }
-
+            if (progressMap.size === 0) { progressWrap.classList.remove('visible'); return; }
             progressWrap.classList.add('visible');
-
             for (const item of progressMap.values()) {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'progress-item';
-
                 const label = document.createElement('div');
                 label.className = 'progress-label';
-                const percent = typeof item.progress === 'number' ? ` (${item.progress.toFixed(1)}%)` : '';
-                label.textContent = `${item.file}${percent}`;
-
+                const pct = typeof item.progress === 'number' ? ` (${item.progress.toFixed(1)}%)` : '';
+                label.textContent = `${item.file}${pct}`;
                 const outer = document.createElement('div');
                 outer.className = 'progress-bar-outer';
-
                 const inner = document.createElement('div');
                 inner.className = 'progress-bar-inner';
                 inner.style.width = `${item.progress ?? 0}%`;
-
                 outer.appendChild(inner);
                 wrapper.appendChild(label);
                 wrapper.appendChild(outer);
@@ -661,29 +649,38 @@
             }
         }
 
+        function sendNextChunk() {
+            if (chunkQueue.length === 0) return;
+            const chunk = chunkQueue.shift();
+            currentChunkIndex++;
+            currentChunkBuffer = '';
+            setStatus(totalChunks > 1
+                ? `Translating paragraph ${currentChunkIndex} of ${totalChunks}…`
+                : STATUS_TRANSLATING);
+            worker.postMessage({ type: 'translate', text: chunk, max_new_tokens: adaptiveMaxNewTokens(chunk) });
+        }
+
         function startTranslation(text) {
             if (!worker) return;
             const trimmed = text.trim();
             if (!trimmed) return;
-
+            const paragraphs = splitParagraphs(trimmed);
             isTranslating = true;
             output.innerText = '';
             outputMeta.textContent = 'Streaming…';
-            setStatus(STATUS_TRANSLATING);
             setBusy(true);
             updateButtons();
             scrollOutputIntoView();
-
-            worker.postMessage({
-                type: 'translate',
-                text: trimmed,
-                max_new_tokens: adaptiveMaxNewTokens(trimmed),
-            });
+            chunkResults = [];
+            currentChunkBuffer = '';
+            chunkQueue = [...paragraphs];
+            totalChunks = paragraphs.length;
+            currentChunkIndex = 0;
+            sendNextChunk();
         }
 
         function pickRandomPrompt() {
-            const prompt = RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
-            input.value = prompt;
+            input.value = RANDOM_PROMPTS[Math.floor(Math.random() * RANDOM_PROMPTS.length)];
             updateMeta();
             input.focus();
         }
@@ -707,95 +704,49 @@
 
                 function normalizeError(err) {
                     let message = '';
-
-                    if (err?.message) {
-                        message = err.message;
-                    } else {
-                        try {
-                            message = JSON.stringify(err, Object.getOwnPropertyNames(err));
-                        } catch {
-                            message = String(err);
-                        }
-                    }
-
-                    if (message.includes('Could not locate file')) {
-                        message += "\\n\\nThe model repo is missing a required ONNX sidecar file.";
-                    }
-
+                    if (err?.message) { message = err.message; }
+                    else { try { message = JSON.stringify(err, Object.getOwnPropertyNames(err)); } catch { message = String(err); } }
+                    if (message.includes('Could not locate file')) message += "\\n\\nThe model repo is missing a required ONNX sidecar file.";
                     return message || 'Unknown error';
                 }
 
                 async function getGenerator() {
                     if (generator) return generator;
                     if (generatorPromise) return generatorPromise;
-
                     env.allowRemoteModels = true;
                     env.allowLocalModels = false;
                     env.useBrowserCache = true;
-
-                    const options = {
-                        device: 'wasm',
-                        dtype: 'q8',
-                        use_external_data_format: true,
-                        progress_callback: (x) => self.postMessage(x),
-                    };
-
-                    if (MODEL_REVISION) {
-                        options.revision = MODEL_REVISION;
-                    }
-
+                    const options = { device: 'wasm', dtype: 'q8', use_external_data_format: true, progress_callback: (x) => self.postMessage(x) };
+                    if (MODEL_REVISION) options.revision = MODEL_REVISION;
                     generatorPromise = pipeline('text-generation', MODEL_ID, options)
                         .then(instance => {
                             generator = instance;
-
-                            if (!generator.tokenizer.chat_template) {
-                                generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
-                            }
-
+                            if (!generator.tokenizer.chat_template) generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
                             self.postMessage({ status: 'ready' });
                             return instance;
                         })
-                        .catch(err => {
-                            self.postMessage({ status: 'error', message: normalizeError(err) });
-                            throw err;
-                        });
-
+                        .catch(err => { self.postMessage({ status: 'error', message: normalizeError(err) }); throw err; });
                     return generatorPromise;
                 }
 
                 self.addEventListener('message', async (event) => {
                     const data = event.data;
-
                     if (data.type === 'init') {
                         MODEL_ID = data.modelId;
                         MODEL_REVISION = data.modelRevision || null;
-
-                        try {
-                            await getGenerator();
-                        } catch {
-                        }
+                        try { await getGenerator(); } catch {}
                         return;
                     }
-
                     if (data.type === 'translate') {
                         try {
                             const pipe = await getGenerator();
-
-                            const messages = [
-                                { role: 'system', content: SYSTEM_PROMPT },
-                                { role: 'user', content: data.text },
-                            ];
-
+                            const messages = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: data.text }];
                             let streamed = '';
                             const streamer = new TextStreamer(pipe.tokenizer, {
                                 skip_prompt: true,
                                 skip_special_tokens: true,
-                                callback_function: (text) => {
-                                    streamed += text;
-                                    self.postMessage({ status: 'update', output: text });
-                                },
+                                callback_function: (text) => { streamed += text; self.postMessage({ status: 'update', output: text }); },
                             });
-
                             await pipe(messages, {
                                 max_new_tokens: data.max_new_tokens,
                                 do_sample: true,
@@ -808,12 +759,7 @@
                                 return_full_text: false,
                                 streamer,
                             });
-
-                            self.postMessage({
-                                status: 'complete',
-                                streamed,
-                                originalInput: data.text,
-                            });
+                            self.postMessage({ status: 'complete', streamed, originalInput: data.text });
                         } catch (err) {
                             self.postMessage({ status: 'error', message: normalizeError(err) });
                         }
@@ -826,135 +772,90 @@
 
             worker.addEventListener('message', (e) => {
                 const data = e.data ?? {};
-
                 switch (data.status) {
                     case 'initiate':
                         progressMap.set(data.file, { file: data.file, progress: 0 });
-                        renderProgress();
-                        setBusy(true);
-                        setStatus(STATUS_LOADING_FILES);
-                        setLoadDetailsOpen(true);
+                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_FILES); setLoadDetailsOpen(true);
                         break;
-
                     case 'progress':
-                        progressMap.set(data.file, {
-                            file: data.file,
-                            progress: data.progress ?? 0,
-                        });
-                        renderProgress();
-                        setBusy(true);
-                        setStatus(STATUS_LOADING_FILES);
-                        setLoadDetailsOpen(true);
+                        progressMap.set(data.file, { file: data.file, progress: data.progress ?? 0 });
+                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_FILES); setLoadDetailsOpen(true);
                         break;
-
                     case 'done':
-                        progressMap.delete(data.file);
-                        renderProgress();
+                        progressMap.delete(data.file); renderProgress();
                         break;
-
                     case 'ready':
-                        isReady = true;
-                        setBusy(false);
-
-                        if (progressMap.size === 0) {
-                            progressWrap.classList.remove('visible');
-                        }
-
-                        setStatus(STATUS_READY);
-                        setLoadDetailsOpen(false);
-                        updateMeta();
-
-                        if (queuedText && !isTranslating) {
-                            const text = queuedText;
-                            queuedText = null;
-                            startTranslation(text);
-                        }
+                        isReady = true; setBusy(false);
+                        if (progressMap.size === 0) progressWrap.classList.remove('visible');
+                        setStatus(STATUS_READY); setLoadDetailsOpen(false); updateMeta();
+                        if (queuedText && !isTranslating) { const t = queuedText; queuedText = null; startTranslation(t); }
                         break;
-
-                    case 'update':
-                        output.innerText += data.output ?? '';
-                        updateMeta();
-                        break;
-
-                    case 'complete': {
-                        isTranslating = false;
-                        setBusy(false);
-
-                        const finalText = stripPromptEcho(
-                            (data.streamed || output.innerText || '').trim(),
-                            data.originalInput || input.value.trim()
-                        );
-
-                        output.innerText = finalText || '[No text generated]';
-                        setStatus(STATUS_DONE);
-                        scrollOutputIntoView();
+                    case 'update': {
+                        const newText = data.output ?? '';
+                        currentChunkBuffer += newText;
+                        output.innerText = totalChunks > 1 && chunkResults.length > 0
+                            ? chunkResults.join('\n\n') + '\n\n' + currentChunkBuffer
+                            : chunkResults.join('\n\n') + currentChunkBuffer;
                         updateMeta();
                         break;
                     }
-
+                    case 'complete': {
+                        const finalChunkText = stripPromptEcho(
+                            (data.streamed || currentChunkBuffer || '').trim(),
+                            data.originalInput || ''
+                        );
+                        currentChunkBuffer = '';
+                        chunkResults.push(finalChunkText || '');
+                        if (chunkQueue.length > 0) {
+                            output.innerText = chunkResults.join('\n\n');
+                            sendNextChunk();
+                        } else {
+                            isTranslating = false; setBusy(false);
+                            output.innerText = chunkResults.join('\n\n') || '[No text generated]';
+                            setStatus(STATUS_DONE); scrollOutputIntoView(); updateMeta();
+                        }
+                        break;
+                    }
                     case 'error':
-                        isReady = false;
-                        isTranslating = false;
-                        setBusy(false);
-                        setLoadDetailsOpen(true);
-                        setStatus(`Error: ${data.message || 'Unknown error'}`);
-                        updateMeta();
+                        isReady = false; isTranslating = false; chunkQueue = []; currentChunkBuffer = '';
+                        setBusy(false); setLoadDetailsOpen(true);
+                        setStatus(`Error: ${data.message || 'Unknown error'}`); updateMeta();
                         break;
                 }
             });
 
-            worker.postMessage({
-                type: 'init',
-                modelId: MODEL_ID,
-                modelRevision: MODEL_REVISION,
-            });
+            worker.postMessage({ type: 'init', modelId: MODEL_ID, modelRevision: MODEL_REVISION });
         }
 
         btn.addEventListener('click', () => {
             const text = input.value.trim();
             if (!text) return;
-
-            if (!isReady) {
-                queuedText = text;
-                setStatus(STATUS_QUEUED);
-                setBusy(true);
-                setLoadDetailsOpen(true);
-                return;
-            }
-
+            if (!isReady) { queuedText = text; setStatus(STATUS_QUEUED); setBusy(true); setLoadDetailsOpen(true); return; }
             startTranslation(text);
         });
 
         randomBtn.addEventListener('click', pickRandomPrompt);
 
         clearBtn.addEventListener('click', () => {
-            queuedText = null;
+            queuedText = null; chunkQueue = []; chunkResults = []; currentChunkBuffer = '';
             input.value = '';
             output.innerText = 'Translation will appear here...';
             setStatus(isReady ? STATUS_READY : STATUS_LOADING_INIT);
-            if (isReady) {
-                setLoadDetailsOpen(false);
-            }
-            updateMeta();
-            input.focus();
+            if (isReady) setLoadDetailsOpen(false);
+            updateMeta(); input.focus();
         });
 
         copyBtn.addEventListener('click', async () => {
             const text = output.innerText.trim();
             if (!text || text === 'Translation will appear here...') return;
-
             try {
                 await navigator.clipboard.writeText(text);
                 const old = copyBtn.textContent;
                 copyBtn.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyBtn.textContent = old;
-                }, 1200);
+                setTimeout(() => { copyBtn.textContent = old; }, 1200);
             } catch {
                 copyBtn.textContent = 'Copy failed';
-                setTimeout(() => {
-                    copyBtn.textContent = 'Copy output';
-                }, 1200);
+                setTimeout(() => { copyBtn.textContent = 'Copy output'; }, 1200);
             }
         });
 
@@ -962,11 +863,8 @@
 
         input.addEventListener('keydown', (event) => {
             const isMac = navigator.platform.toUpperCase().includes('MAC');
-            const modifierPressed = isMac ? event.metaKey : event.ctrlKey;
-
-            if (modifierPressed && event.key === 'Enter') {
-                event.preventDefault();
-                btn.click();
+            if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault(); btn.click();
             }
         });
 
