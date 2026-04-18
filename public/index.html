@@ -223,69 +223,129 @@
             }
         }
 
-        .load-details {
-            margin-top: 8px;
-        }
+        /* ── Loading progress ─────────────────────────────────────────────── */
 
-        .load-details summary {
-            color: var(--muted);
-            font-size: 0.88rem;
-            cursor: pointer;
-            list-style: none;
-        }
-
-        .load-details summary::-webkit-details-marker {
+        .load-section {
             display: none;
-        }
-
-        .load-details summary::after {
-            content: "Show";
-            margin-left: 8px;
-            color: var(--muted);
-        }
-
-        .load-details[open] summary::after {
-            content: "Hide";
-        }
-
-        .progress-wrap {
-            margin-top: 8px;
-            display: none;
-            gap: 8px;
             flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
         }
 
-        .progress-wrap.visible {
+        .load-section.visible {
             display: flex;
         }
 
-        .progress-item {
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
+        .load-overall-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
         }
 
-        .progress-label {
-            font-size: 0.85rem;
-            padding: 7px 10px 0;
-            color: #555;
+        .load-overall-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #333;
         }
 
-        .progress-bar-outer {
-            margin: 6px 10px 10px;
-            height: 12px;
-            background: #e5e7eb;
+        .load-overall-pct {
+            font-size: 0.82rem;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .load-overall-bar-outer {
+            height: 16px;
+            background: #e0e3e8;
             border-radius: 999px;
             overflow: hidden;
         }
 
-        .progress-bar-inner {
+        .load-overall-bar-inner {
             height: 100%;
             width: 0%;
             background: var(--accent);
+            border-radius: 999px;
+            transition: width 0.25s ease-out;
+        }
+
+        /* Animated shimmer while total size is not yet known */
+        .load-overall-bar-inner.indeterminate {
+            width: 100%;
+            background: linear-gradient(90deg,
+                    #e0e3e8 0%,
+                    var(--accent) 35%,
+                    var(--accent-hover) 50%,
+                    var(--accent) 65%,
+                    #e0e3e8 100%);
+            background-size: 300% 100%;
+            animation: progress-shimmer 1.6s ease-in-out infinite;
+        }
+
+        @keyframes progress-shimmer {
+            0% {
+                background-position: 100% 0;
+            }
+
+            100% {
+                background-position: -100% 0;
+            }
+        }
+
+        /* Per-file breakdown (smaller, secondary) */
+        .load-files {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .load-file-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .load-file-name {
+            font-size: 0.78rem;
+            color: var(--muted);
+            flex: 0 0 auto;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .load-file-bar-outer {
+            flex: 1;
+            height: 6px;
+            background: #d8dde3;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .load-file-bar-inner {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            opacity: 0.75;
+            border-radius: 999px;
             transition: width 0.15s ease-out;
         }
+
+        .load-file-pct {
+            font-size: 0.75rem;
+            color: var(--muted);
+            flex: 0 0 32px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Output ───────────────────────────────────────────────────────── */
 
         #output {
             margin-top: 10px;
@@ -317,19 +377,7 @@
             font-weight: 600;
         }
 
-        @media (min-width: 641px) {
-            .load-details summary {
-                display: none;
-            }
-
-            .load-details {
-                margin-top: 8px;
-            }
-
-            .load-details>#progressWrap {
-                display: flex !important;
-            }
-        }
+        /* ── Mobile ───────────────────────────────────────────────────────── */
 
         @media (max-width: 640px) {
             body {
@@ -404,26 +452,18 @@
                 line-height: 1.35;
             }
 
-            .load-details {
-                margin-top: 6px;
+            .load-section {
+                margin-top: 10px;
+                padding: 12px;
+                gap: 8px;
             }
 
-            .load-details:not([open]) #progressWrap {
-                display: none !important;
+            .load-overall-bar-outer {
+                height: 14px;
             }
 
-            .load-details[open] #progressWrap {
-                display: flex !important;
-            }
-
-            .progress-label {
-                font-size: 0.8rem;
-                padding: 6px 8px 0;
-            }
-
-            .progress-bar-outer {
-                margin: 4px 8px 8px;
-                height: 10px;
+            .load-file-name {
+                max-width: 130px;
             }
 
             #output {
@@ -484,10 +524,19 @@
                 <div class="status" id="statusText">Getting the local AI ready… first load can take a minute.</div>
             </div>
 
-            <details class="load-details" id="loadDetails">
-                <summary>Loading details</summary>
-                <div id="progressWrap" class="progress-wrap visible"></div>
-            </details>
+            <!-- Always-visible loading progress: no manual expand needed -->
+            <div id="loadSection" class="load-section" aria-live="polite">
+                <div>
+                    <div class="load-overall-header">
+                        <span id="loadOverallLabel" class="load-overall-label">Downloading model…</span>
+                        <span id="loadOverallPct" class="load-overall-pct"></span>
+                    </div>
+                    <div class="load-overall-bar-outer">
+                        <div id="loadOverallBar" class="load-overall-bar-inner indeterminate"></div>
+                    </div>
+                </div>
+                <div id="loadFiles" class="load-files"></div>
+            </div>
 
             <div class="hint">Tip: press Ctrl/Cmd + Enter to translate. Separate paragraphs with a blank line for
                 multi-paragraph texts.</div>
@@ -509,7 +558,7 @@
 
     <script src="./config.js"></script>
     <script type="module">
-        const MODEL_ID = window.APP_CONFIG?.MODEL_ID || 'Dev4PGH/pittsburghese-model';
+        const MODEL_ID = window.APP_CONFIG?.MODEL_ID || 'Dev4PGH/smol-pittsburghese-model';
         const MODEL_REVISION = window.APP_CONFIG?.MODEL_REVISION || null;
 
         // ── Single source of truth for the system prompt ──────────────────────
@@ -542,7 +591,6 @@
         ];
 
         const STATUS_LOADING_INIT = 'Getting the local AI ready… first load can take a minute.';
-        const STATUS_LOADING_FILES = 'Downloading the model to your browser… this is usually the slow part.';
         const STATUS_READY = 'Ready. This AI is running locally on your device.';
         const STATUS_TRANSLATING = 'Translating locally…';
         const STATUS_DONE = 'Done.';
@@ -557,8 +605,11 @@
         const outputCard = document.getElementById('outputCard');
         const status = document.getElementById('statusText');
         const spinner = document.getElementById('spinner');
-        const progressWrap = document.getElementById('progressWrap');
-        const loadDetails = document.getElementById('loadDetails');
+        const loadSection = document.getElementById('loadSection');
+        const loadOverallLabel = document.getElementById('loadOverallLabel');
+        const loadOverallPct = document.getElementById('loadOverallPct');
+        const loadOverallBar = document.getElementById('loadOverallBar');
+        const loadFiles = document.getElementById('loadFiles');
         const inputMeta = document.getElementById('inputMeta');
         const outputMeta = document.getElementById('outputMeta');
         const modelBadge = document.getElementById('modelBadge');
@@ -567,6 +618,10 @@
         let isReady = false;
         let isTranslating = false;
         let queuedText = null;
+
+        // Each entry: { file, loaded, total, progress, done }
+        // Files are marked done (not deleted) so their byte counts remain
+        // in the aggregate total until the model finishes loading entirely.
         const progressMap = new Map();
 
         let chunkQueue = [];
@@ -597,11 +652,6 @@
         function setBusy(v) { spinner.classList.toggle('visible', v); }
         function setStatus(msg) { status.innerText = msg; }
 
-        function setLoadDetailsOpen(open) {
-            if (!loadDetails || !isMobileLayout()) return;
-            loadDetails.open = open;
-        }
-
         function scrollOutputIntoView() {
             if (!isMobileLayout()) return;
             requestAnimationFrame(() => outputCard.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -626,26 +676,78 @@
             updateButtons();
         }
 
+        function formatMB(bytes) {
+            return (bytes / 1_000_000).toFixed(1) + '\u202fMB';
+        }
+
         function renderProgress() {
-            progressWrap.innerHTML = '';
-            if (progressMap.size === 0) { progressWrap.classList.remove('visible'); return; }
-            progressWrap.classList.add('visible');
-            for (const item of progressMap.values()) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'progress-item';
-                const label = document.createElement('div');
-                label.className = 'progress-label';
-                const pct = typeof item.progress === 'number' ? ` (${item.progress.toFixed(1)}%)` : '';
-                label.textContent = `${item.file}${pct}`;
-                const outer = document.createElement('div');
-                outer.className = 'progress-bar-outer';
-                const inner = document.createElement('div');
-                inner.className = 'progress-bar-inner';
-                inner.style.width = `${item.progress ?? 0}%`;
-                outer.appendChild(inner);
-                wrapper.appendChild(label);
-                wrapper.appendChild(outer);
-                progressWrap.appendChild(wrapper);
+            const entries = [...progressMap.values()];
+
+            if (entries.length === 0) {
+                loadSection.classList.remove('visible');
+                return;
+            }
+
+            loadSection.classList.add('visible');
+
+            // Aggregate bytes across all files including completed ones.
+            let totalLoaded = 0;
+            let totalBytes = 0;
+            for (const e of entries) {
+                totalLoaded += e.loaded || 0;
+                totalBytes += e.total || 0;
+            }
+
+            // Overall bar and label.
+            if (totalBytes > 0) {
+                const pct = Math.min((totalLoaded / totalBytes) * 100, 100);
+                loadOverallBar.classList.remove('indeterminate');
+                loadOverallBar.style.width = `${pct}%`;
+                loadOverallLabel.textContent = `${formatMB(totalLoaded)} of ${formatMB(totalBytes)}`;
+                loadOverallPct.textContent = `${Math.round(pct)}%`;
+            } else if (totalLoaded > 0) {
+                loadOverallBar.classList.remove('indeterminate');
+                loadOverallBar.style.width = '0%';
+                loadOverallLabel.textContent = `${formatMB(totalLoaded)} downloaded…`;
+                loadOverallPct.textContent = '';
+            } else {
+                loadOverallBar.classList.add('indeterminate');
+                loadOverallBar.style.width = '';
+                loadOverallLabel.textContent = 'Downloading model…';
+                loadOverallPct.textContent = '';
+            }
+
+            // Per-file rows — only active (not yet done) files.
+            const active = entries.filter(e => !e.done);
+            loadFiles.innerHTML = '';
+
+            for (const item of active) {
+                const row = document.createElement('div');
+                row.className = 'load-file-row';
+
+                const name = document.createElement('span');
+                name.className = 'load-file-name';
+                name.textContent = item.file.split('/').pop();
+                name.title = item.file;
+
+                const barOuter = document.createElement('div');
+                barOuter.className = 'load-file-bar-outer';
+
+                const barInner = document.createElement('div');
+                barInner.className = 'load-file-bar-inner';
+                barInner.style.width = `${item.progress ?? 0}%`;
+
+                const pct = document.createElement('span');
+                pct.className = 'load-file-pct';
+                pct.textContent = item.total > 0
+                    ? `${Math.round(item.progress ?? 0)}%`
+                    : '…';
+
+                barOuter.appendChild(barInner);
+                row.appendChild(name);
+                row.appendChild(barOuter);
+                row.appendChild(pct);
+                loadFiles.appendChild(row);
             }
         }
 
@@ -716,16 +818,26 @@
                     env.allowRemoteModels = true;
                     env.allowLocalModels = false;
                     env.useBrowserCache = true;
-                    const options = { device: 'wasm', dtype: 'q8', use_external_data_format: true, progress_callback: (x) => self.postMessage(x) };
+                    const options = {
+                        device: 'wasm',
+                        dtype: 'q8',
+                        use_external_data_format: true,
+                        progress_callback: (x) => self.postMessage(x),
+                    };
                     if (MODEL_REVISION) options.revision = MODEL_REVISION;
                     generatorPromise = pipeline('text-generation', MODEL_ID, options)
                         .then(instance => {
                             generator = instance;
-                            if (!generator.tokenizer.chat_template) generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
+                            if (!generator.tokenizer.chat_template) {
+                                generator.tokenizer.chat_template = FALLBACK_CHAT_TEMPLATE;
+                            }
                             self.postMessage({ status: 'ready' });
                             return instance;
                         })
-                        .catch(err => { self.postMessage({ status: 'error', message: normalizeError(err) }); throw err; });
+                        .catch(err => {
+                            self.postMessage({ status: 'error', message: normalizeError(err) });
+                            throw err;
+                        });
                     return generatorPromise;
                 }
 
@@ -740,12 +852,18 @@
                     if (data.type === 'translate') {
                         try {
                             const pipe = await getGenerator();
-                            const messages = [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: data.text }];
+                            const messages = [
+                                { role: 'system', content: SYSTEM_PROMPT },
+                                { role: 'user', content: data.text },
+                            ];
                             let streamed = '';
                             const streamer = new TextStreamer(pipe.tokenizer, {
                                 skip_prompt: true,
                                 skip_special_tokens: true,
-                                callback_function: (text) => { streamed += text; self.postMessage({ status: 'update', output: text }); },
+                                callback_function: (text) => {
+                                    streamed += text;
+                                    self.postMessage({ status: 'update', output: text });
+                                },
                             });
                             await pipe(messages, {
                                 max_new_tokens: data.max_new_tokens,
@@ -773,23 +891,65 @@
             worker.addEventListener('message', (e) => {
                 const data = e.data ?? {};
                 switch (data.status) {
+
                     case 'initiate':
-                        progressMap.set(data.file, { file: data.file, progress: 0 });
-                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_FILES); setLoadDetailsOpen(true);
+                        progressMap.set(data.file, {
+                            file: data.file,
+                            loaded: 0,
+                            total: 0,
+                            progress: 0,
+                            done: false,
+                        });
+                        renderProgress();
+                        setBusy(true);
+                        setStatus(STATUS_LOADING_INIT);
                         break;
+
                     case 'progress':
-                        progressMap.set(data.file, { file: data.file, progress: data.progress ?? 0 });
-                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_FILES); setLoadDetailsOpen(true);
+                        // Transformers.js includes loaded/total in bytes alongside
+                        // the 0–100 progress float — capture all three.
+                        progressMap.set(data.file, {
+                            file: data.file,
+                            loaded: data.loaded || 0,
+                            total: data.total || 0,
+                            progress: data.progress ?? 0,
+                            done: false,
+                        });
+                        renderProgress();
+                        setBusy(true);
+                        setStatus(STATUS_LOADING_INIT);
                         break;
-                    case 'done':
-                        progressMap.delete(data.file); renderProgress();
+
+                    case 'done': {
+                        // Mark done so the per-file row disappears, but keep in
+                        // the map so its bytes stay in the aggregate total.
+                        const prev = progressMap.get(data.file);
+                        if (prev) {
+                            progressMap.set(data.file, {
+                                ...prev,
+                                loaded: prev.total || prev.loaded,
+                                progress: 100,
+                                done: true,
+                            });
+                        }
+                        renderProgress();
                         break;
+                    }
+
                     case 'ready':
-                        isReady = true; setBusy(false);
-                        if (progressMap.size === 0) progressWrap.classList.remove('visible');
-                        setStatus(STATUS_READY); setLoadDetailsOpen(false); updateMeta();
-                        if (queuedText && !isTranslating) { const t = queuedText; queuedText = null; startTranslation(t); }
+                        isReady = true;
+                        setBusy(false);
+                        progressMap.clear();
+                        loadSection.classList.remove('visible');
+                        setStatus(STATUS_READY);
+                        updateMeta();
+                        if (queuedText && !isTranslating) {
+                            const t = queuedText;
+                            queuedText = null;
+                            startTranslation(t);
+                        }
                         break;
+
                     case 'update': {
                         const newText = data.output ?? '';
                         currentChunkBuffer += newText;
@@ -799,6 +959,7 @@
                         updateMeta();
                         break;
                     }
+
                     case 'complete': {
                         const finalChunkText = stripPromptEcho(
                             (data.streamed || currentChunkBuffer || '').trim(),
@@ -810,16 +971,24 @@
                             output.innerText = chunkResults.join('\n\n');
                             sendNextChunk();
                         } else {
-                            isTranslating = false; setBusy(false);
+                            isTranslating = false;
+                            setBusy(false);
                             output.innerText = chunkResults.join('\n\n') || '[No text generated]';
-                            setStatus(STATUS_DONE); scrollOutputIntoView(); updateMeta();
+                            setStatus(STATUS_DONE);
+                            scrollOutputIntoView();
+                            updateMeta();
                         }
                         break;
                     }
+
                     case 'error':
-                        isReady = false; isTranslating = false; chunkQueue = []; currentChunkBuffer = '';
-                        setBusy(false); setLoadDetailsOpen(true);
-                        setStatus(`Error: ${data.message || 'Unknown error'}`); updateMeta();
+                        isReady = false;
+                        isTranslating = false;
+                        chunkQueue = [];
+                        currentChunkBuffer = '';
+                        setBusy(false);
+                        setStatus(`Error: ${data.message || 'Unknown error'}`);
+                        updateMeta();
                         break;
                 }
             });
@@ -830,19 +999,27 @@
         btn.addEventListener('click', () => {
             const text = input.value.trim();
             if (!text) return;
-            if (!isReady) { queuedText = text; setStatus(STATUS_QUEUED); setBusy(true); setLoadDetailsOpen(true); return; }
+            if (!isReady) {
+                queuedText = text;
+                setStatus(STATUS_QUEUED);
+                setBusy(true);
+                return;
+            }
             startTranslation(text);
         });
 
         randomBtn.addEventListener('click', pickRandomPrompt);
 
         clearBtn.addEventListener('click', () => {
-            queuedText = null; chunkQueue = []; chunkResults = []; currentChunkBuffer = '';
+            queuedText = null;
+            chunkQueue = [];
+            chunkResults = [];
+            currentChunkBuffer = '';
             input.value = '';
             output.innerText = 'Translation will appear here...';
             setStatus(isReady ? STATUS_READY : STATUS_LOADING_INIT);
-            if (isReady) setLoadDetailsOpen(false);
-            updateMeta(); input.focus();
+            updateMeta();
+            input.focus();
         });
 
         copyBtn.addEventListener('click', async () => {
@@ -864,7 +1041,8 @@
         input.addEventListener('keydown', (event) => {
             const isMac = navigator.platform.toUpperCase().includes('MAC');
             if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'Enter') {
-                event.preventDefault(); btn.click();
+                event.preventDefault();
+                btn.click();
             }
         });
 
