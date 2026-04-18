@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>YinzerAI: A Pittsburghese Translator</title>
+    <title>YinzerAI: Pittsburghese Translator</title>
     <style>
         :root {
             color-scheme: light;
@@ -85,6 +85,10 @@
 
         .quiet-note-body {
             padding: 0 12px 10px;
+        }
+
+        .quiet-note-body p {
+            margin: 6px 0;
         }
 
         .quiet-note a {
@@ -483,19 +487,27 @@
 
 <body>
     <div class="hero">
-        <h1>YinzerAI: A Pittsburghese Translator</h1>
+        <h1>YinzerAI</h1>
         <p class="subhead">
-            A small AI language model that rewrites plain English into Pittsburghese, right in your browser.
+            A tiny AI that translates plain English into Pittsburghese, right on your device. No server, no sign-up, no
+            jaggin' around.
         </p>
 
         <details class="quiet-note" id="aboutNote">
-            <summary>Experimental local AI by Dev4PGH. Your text stays on your device. First load may take a minute.
-            </summary>
+            <summary>Wait, how does this work? And why does it sometimes say something completely unhinged?</summary>
             <div class="quiet-note-body">
-                Built by <a href="https://dev4pgh.com/" target="_blank" rel="noopener noreferrer">Dev4PGH</a>.
-                This small LLM runs locally in your browser, so your text is not sent off to a cloud AI service.
-                It is much smaller than something like ChatGPT, so it may occasionally make mistakes, but that is the
-                tradeoff that lets this tiny little yinz-ifier run on your own device.
+                <p>
+                    This is a real, custom-trained AI language model built by
+                    <a href="https://dev4pgh.com/" target="_blank" rel="noopener noreferrer">Dev4PGH</a>.
+                    When you first visit, it downloads the model files to your device and runs the AI
+                    directly on your phone or computer. Nothing you type is ever sent to a server.
+                    After the first load, it should start up much more quickly from your device's cache.
+                </p>
+                <p>
+                    It is genuinely good at Pittsburghese most of the time. But it is also tiny by AI standards,
+                    so occasionally it slips up, goes sideways, or decides to translate its own instructions
+                    instead of your text. Consider it part of the charm. Yinz have been warned, n'at.
+                </p>
             </div>
         </details>
     </div>
@@ -503,28 +515,29 @@
     <div class="stack">
         <section class="card">
             <div class="row spread">
-                <div class="panel-title">Plain English</div>
+                <div class="panel-title">Standard English</div>
                 <div class="meta" id="inputMeta">0 characters</div>
             </div>
 
             <textarea id="inputText"
-                placeholder="Try something like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game."></textarea>
+                placeholder="Type anything here, like: Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game."></textarea>
 
             <div class="controls">
-                <button id="translateBtn" disabled>Translate</button>
+                <button id="translateBtn" disabled>Translate to Pittsburghese</button>
                 <button id="randomBtn" class="secondary" type="button">Random prompt</button>
                 <button id="clearBtn" class="secondary" type="button">Clear</button>
             </div>
 
             <div class="status-row">
                 <div id="spinner" class="spinner visible" aria-hidden="true"></div>
-                <div class="status" id="statusText">Getting the local AI ready… first load can take a minute.</div>
+                <div class="status" id="statusText">Loading the AI onto your device. This only happens once, then it's
+                    cached.</div>
             </div>
 
             <div id="loadSection" class="load-section" aria-live="polite">
                 <div>
                     <div class="load-overall-header">
-                        <span id="loadOverallLabel" class="load-overall-label">Downloading model…</span>
+                        <span id="loadOverallLabel" class="load-overall-label">Downloading model files…</span>
                         <span id="loadOverallPct" class="load-overall-pct"></span>
                     </div>
                     <div class="load-overall-bar-outer">
@@ -534,7 +547,7 @@
                 <div id="loadFiles" class="load-files"></div>
             </div>
 
-            <div class="hint">Tip: press Ctrl/Cmd + Enter to translate.</div>
+            <div class="hint">Ctrl/Cmd + Enter to translate.</div>
         </section>
 
         <section class="card" id="outputCard">
@@ -542,12 +555,12 @@
                 <div class="panel-title">Pittsburghese</div>
                 <div class="row" style="gap:10px;">
                     <div class="badge" id="modelBadge">Loading</div>
-                    <div class="meta" id="outputMeta">Ready when you are</div>
-                    <button id="copyBtn" class="secondary" type="button">Copy output</button>
+                    <div class="meta" id="outputMeta">Waitin' on yinz</div>
+                    <button id="copyBtn" class="secondary" type="button">Copy</button>
                 </div>
             </div>
 
-            <div id="output" aria-live="polite">Translation will appear here...</div>
+            <div id="output" aria-live="polite">Yinz translation will show up here once the model loads, n'at.</div>
         </section>
     </div>
 
@@ -571,8 +584,6 @@
             "Begin your reply immediately with the first translated word. " +
             "Do not write any label, heading, or prefix before the translation.";
 
-        // Short single/two-sentence prompts only — keeps the demo snappy and
-        // avoids multi-paragraph edge cases the small model handles less reliably.
         const RANDOM_PROMPTS = [
             "Please clean up the kitchen before the guests arrive. Then we can go downtown and watch the game.",
             "The roads might get slippery tonight, so we should probably leave early.",
@@ -591,28 +602,38 @@
             "My mom and her friends are coming over for supper tonight.",
         ];
 
-        const STATUS_LOADING_INIT = 'Getting the local AI ready… first load can take a minute.';
-        const STATUS_READY = 'Ready. This AI is running locally on your device.';
-        const STATUS_TRANSLATING = 'Translating locally…';
-        const STATUS_DONE = 'Done.';
-        const STATUS_QUEUED = 'Still loading the local AI… your translation will start automatically.';
+        const OUTPUT_PLACEHOLDER = "Yinz translation will show up here once the model loads, n'at.";
+        const OUTPUT_READY = "Ready. Type something above and hit Translate, n'at.";
+        const OUTPUT_EMPTY = "[No output. Try rephrasing, n'at.]";
 
-        // Strips two categories of output artifact from each completed chunk:
-        //
-        // 1. Verbatim prompt echo — the model repeating the user's input before
-        //    the translation (caught by exact-match prefix removal).
-        //
-        // 2. Translation label prefix — the base model occasionally generates a
-        //    task framing label such as "Translate to Pixburgese:" or
-        //    "Pittsburghese:" before the actual translation. PREFIX_RE catches
-        //    these. The training prompt also now explicitly forbids them.
-        //
-        // 3. Spurious "Anymore," prefix — the model occasionally opens with
-        //    "Anymore," (a valid Pittsburgh expression meaning "nowadays") on
-        //    sentences where it makes no sense, e.g. specific weather statements.
-        //    ANYMORE_RE catches this at the start of a chunk only.
+        const STATUS_LOADING = 'Loading the AI onto your device. This only happens once, then it\'s cached.';
+        const STATUS_READY = 'Ready. Running on your device, not a server.';
+        const STATUS_WORKING = 'Translating...';
+        const STATUS_DONE = "Done.";
+        const STATUS_QUEUED = "Still loading. Your translation will run as soon as it's ready.";
+
+        // Strips output artifacts:
+        //   1. Verbatim prompt echo -- the model accidentally repeating the
+        //      input before the translation.
+        //   2. Translation label prefix -- the base model occasionally frames
+        //      its output with a label like "Translate to Pixburgese:" before
+        //      the actual translation.
         const PREFIX_RE = /^(?:(?:translate(?:\s+to\s+[\w\s]+)?|translation|pittsburghese|pixburg(?:ese|h)?|yinzer(?:ai)?)\s*:?\s*)+/i;
-        const ANYMORE_RE = /^Anymore,\s*/;
+
+        function stripArtifacts(text, originalInput) {
+            let cleaned = (text || '').trim();
+
+            // 1. Remove verbatim prompt echo.
+            const escaped = originalInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim();
+            if (escaped) {
+                cleaned = cleaned.replace(new RegExp(`^${escaped}\\s*`, 'i'), '').trim();
+            }
+
+            // 2. Remove translation-task label prefix.
+            cleaned = cleaned.replace(PREFIX_RE, '').trim();
+
+            return cleaned;
+        }
 
         const btn = document.getElementById('translateBtn');
         const randomBtn = document.getElementById('randomBtn');
@@ -621,7 +642,7 @@
         const input = document.getElementById('inputText');
         const output = document.getElementById('output');
         const outputCard = document.getElementById('outputCard');
-        const status = document.getElementById('statusText');
+        const statusEl = document.getElementById('statusText');
         const spinner = document.getElementById('spinner');
         const loadSection = document.getElementById('loadSection');
         const loadOverallLabel = document.getElementById('loadOverallLabel');
@@ -655,55 +676,33 @@
             return text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         }
 
-        function stripArtifacts(text, originalInput) {
-            let cleaned = (text || '').trim();
-
-            // 1. Remove verbatim prompt echo.
-            const escaped = originalInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').trim();
-            if (escaped) {
-                cleaned = cleaned.replace(new RegExp(`^${escaped}\\s*`, 'i'), '').trim();
-            }
-
-            // 2. Remove translation-task label prefix.
-            cleaned = cleaned.replace(PREFIX_RE, '').trim();
-
-            // 3. Remove spurious "Anymore," when the source text does not begin
-            //    with "anymore", "nowadays", or "these days" — those are the only
-            //    contexts where the Pittsburgh usage is correct.
-            const srcLower = originalInput.trim().toLowerCase();
-            const srcStartsWithAnymore = /^(anymore|nowadays|these days)\b/.test(srcLower);
-            if (!srcStartsWithAnymore) {
-                cleaned = cleaned.replace(ANYMORE_RE, '').trim();
-            }
-
-            return cleaned;
-        }
-
         function isMobileLayout() { return window.innerWidth <= 640; }
         function setBusy(v) { spinner.classList.toggle('visible', v); }
-        function setStatus(msg) { status.innerText = msg; }
+        function setStatus(msg) { statusEl.innerText = msg; }
 
         function scrollOutputIntoView() {
             if (!isMobileLayout()) return;
             requestAnimationFrame(() => outputCard.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         }
 
+        function isPlaceholder(txt) {
+            return !txt || txt === OUTPUT_PLACEHOLDER || txt === OUTPUT_READY;
+        }
+
         function updateButtons() {
             btn.disabled = !isReady || isTranslating;
             randomBtn.disabled = isTranslating;
             clearBtn.disabled = false;
-            copyBtn.disabled = !output.innerText || output.innerText === 'Translation will appear here...';
+            copyBtn.disabled = isPlaceholder(output.innerText);
         }
 
         function updateMeta() {
             inputMeta.textContent = `${input.value.length} characters`;
-            const text = output.innerText.trim();
-            if (!text || text === 'Translation will appear here...') {
-                outputMeta.textContent = isReady ? 'Runs on this device' : 'Loading model';
-            } else {
-                outputMeta.textContent = `${text.length} characters`;
-            }
-            modelBadge.textContent = isReady ? 'Local AI' : 'Loading';
+            const txt = output.innerText.trim();
+            outputMeta.textContent = isPlaceholder(txt)
+                ? (isReady ? 'Ready when yinz are' : 'Loading...')
+                : `${txt.length} characters`;
+            modelBadge.textContent = isReady ? 'On-device AI' : 'Loading';
             updateButtons();
         }
 
@@ -731,12 +730,12 @@
             } else if (totalLoaded > 0) {
                 loadOverallBar.classList.remove('indeterminate');
                 loadOverallBar.style.width = '0%';
-                loadOverallLabel.textContent = `${formatMB(totalLoaded)} downloaded…`;
+                loadOverallLabel.textContent = `${formatMB(totalLoaded)} downloaded...`;
                 loadOverallPct.textContent = '';
             } else {
                 loadOverallBar.classList.add('indeterminate');
                 loadOverallBar.style.width = '';
-                loadOverallLabel.textContent = 'Downloading model…';
+                loadOverallLabel.textContent = 'Downloading model files...';
                 loadOverallPct.textContent = '';
             }
 
@@ -745,18 +744,23 @@
             for (const item of active) {
                 const row = document.createElement('div');
                 row.className = 'load-file-row';
+
                 const name = document.createElement('span');
                 name.className = 'load-file-name';
                 name.textContent = item.file.split('/').pop();
                 name.title = item.file;
+
                 const barOuter = document.createElement('div');
                 barOuter.className = 'load-file-bar-outer';
+
                 const barInner = document.createElement('div');
                 barInner.className = 'load-file-bar-inner';
                 barInner.style.width = `${item.progress ?? 0}%`;
+
                 const pct = document.createElement('span');
                 pct.className = 'load-file-pct';
-                pct.textContent = item.total > 0 ? `${Math.round(item.progress ?? 0)}%` : '…';
+                pct.textContent = item.total > 0 ? `${Math.round(item.progress ?? 0)}%` : '...';
+
                 barOuter.appendChild(barInner);
                 row.appendChild(name);
                 row.appendChild(barOuter);
@@ -771,8 +775,8 @@
             currentChunkIndex++;
             currentChunkBuffer = '';
             setStatus(totalChunks > 1
-                ? `Translating paragraph ${currentChunkIndex} of ${totalChunks}…`
-                : STATUS_TRANSLATING);
+                ? `Translating paragraph ${currentChunkIndex} of ${totalChunks}...`
+                : STATUS_WORKING);
             worker.postMessage({ type: 'translate', text: chunk, max_new_tokens: adaptiveMaxNewTokens(chunk) });
         }
 
@@ -783,7 +787,7 @@
             const paragraphs = splitParagraphs(trimmed);
             isTranslating = true;
             output.innerText = '';
-            outputMeta.textContent = 'Streaming…';
+            outputMeta.textContent = 'Translating...';
             setBusy(true);
             updateButtons();
             scrollOutputIntoView();
@@ -908,7 +912,7 @@
 
                     case 'initiate':
                         progressMap.set(data.file, { file: data.file, loaded: 0, total: 0, progress: 0, done: false });
-                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_INIT);
+                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING);
                         break;
 
                     case 'progress':
@@ -919,7 +923,7 @@
                             progress: data.progress ?? 0,
                             done: false,
                         });
-                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING_INIT);
+                        renderProgress(); setBusy(true); setStatus(STATUS_LOADING);
                         break;
 
                     case 'done': {
@@ -934,7 +938,9 @@
                     case 'ready':
                         isReady = true; setBusy(false);
                         progressMap.clear(); loadSection.classList.remove('visible');
-                        setStatus(STATUS_READY); updateMeta();
+                        setStatus(STATUS_READY);
+                        output.innerText = OUTPUT_READY;
+                        updateMeta();
                         if (queuedText && !isTranslating) { const t = queuedText; queuedText = null; startTranslation(t); }
                         break;
 
@@ -960,7 +966,7 @@
                             sendNextChunk();
                         } else {
                             isTranslating = false; setBusy(false);
-                            output.innerText = chunkResults.join('\n\n') || '[No text generated]';
+                            output.innerText = chunkResults.join('\n\n') || OUTPUT_EMPTY;
                             setStatus(STATUS_DONE); scrollOutputIntoView(); updateMeta();
                         }
                         break;
@@ -968,7 +974,9 @@
 
                     case 'error':
                         isReady = false; isTranslating = false; chunkQueue = []; currentChunkBuffer = '';
-                        setBusy(false); setStatus(`Error: ${data.message || 'Unknown error'}`); updateMeta();
+                        setBusy(false);
+                        setStatus(`Something went wrong: ${data.message || 'unknown error'}`);
+                        updateMeta();
                         break;
                 }
             });
@@ -988,22 +996,22 @@
         clearBtn.addEventListener('click', () => {
             queuedText = null; chunkQueue = []; chunkResults = []; currentChunkBuffer = '';
             input.value = '';
-            output.innerText = 'Translation will appear here...';
-            setStatus(isReady ? STATUS_READY : STATUS_LOADING_INIT);
+            output.innerText = isReady ? OUTPUT_READY : OUTPUT_PLACEHOLDER;
+            setStatus(isReady ? STATUS_READY : STATUS_LOADING);
             updateMeta(); input.focus();
         });
 
         copyBtn.addEventListener('click', async () => {
             const text = output.innerText.trim();
-            if (!text || text === 'Translation will appear here...') return;
+            if (isPlaceholder(text)) return;
             try {
                 await navigator.clipboard.writeText(text);
                 const old = copyBtn.textContent;
                 copyBtn.textContent = 'Copied!';
                 setTimeout(() => { copyBtn.textContent = old; }, 1200);
             } catch {
-                copyBtn.textContent = 'Copy failed';
-                setTimeout(() => { copyBtn.textContent = 'Copy output'; }, 1200);
+                copyBtn.textContent = 'Failed';
+                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
             }
         });
 
